@@ -9,7 +9,7 @@ import random
 
 def prepareData(imgName):
     """
-    Function to copy the images from mail data folder to
+    Function to copy the images from main data folder to
     a different folder for all SAGT1 images
     """
 
@@ -50,7 +50,7 @@ if __name__ == '__main__':
     csv_path = os.path.join(folder_path,'boundingInfo','SAGT1 bounding boxes.csv')
     image_dir = os.path.join(my_path, 'MRI_Image','06192023 SFI renamed')
     destination_folder = os.path.join(folder_path, 'SAGT1_Images')
-    train_dir = os.path.join(folder_path, "train_data")
+    #train_dir = os.path.join(folder_path, "train_data")
     #val_dir = os.path.join(folder_path, "validate")
-    test_dir = os.path.join(folder_path, "test_data")
+    #test_dir = os.path.join(folder_path, "test_data")
     main()
