@@ -7,10 +7,10 @@ import random
 
 
 
-def prepareData(imgName):
+def prepareData(imgName, img):
     """
     Function to copy the images from main data folder to
-    a different folder for all SAGT1 images
+    a different folder for all img images
     """
 
     print("Start of Copy files")
@@ -21,36 +21,45 @@ def prepareData(imgName):
         #print(root)
         for file_name in files:
             file_path = os.path.join(root, file_name)
-            if 'SAGT1' in file_path:
+            if img in file_path:
                 #print(file_name)
                 if imgName.isin([file_name]).any():
                     #print(file_name)
-                    shutil.copy(file_path, destination_folder)
+                    if img == 'SAGT1':
+                        shutil.copy(file_path, destination_folder_SAGT1)
+                    elif img == 'SAGIR':
+                        shutil.copy(file_path, destination_folder_SAGIR)
                     counter += 1
                     #print("File Path:", file_path)
                     #print(file_name)
     print(f"File Copied ....:{counter}")
 
 
-def main():
+def main(img):
 
-    # get the bounding info into a dataframe
-    sagT1_bounding = pd.read_csv(csv_path)
+    if img == 'SAGT1':
+       # get the bounding info into a dataframe
+        df_bounding = pd.read_csv(csv_path_SAGT1)
+    elif img == 'SAGIR':
+        df_bounding = pd.read_csv(csv_path_SAGTIR)
 
     # get the image names tha has a bounding info
-    imgName = sagT1_bounding['image']
+    imgName = df_bounding['image']
 
     # create_fodler()
-    prepareData(imgName)
+    prepareData(imgName,img)
 
 if __name__ == '__main__':
     my_path = "/Users/jiten/Masters/WorkPlace/"
     folder_path = "/Users/jiten/Masters/WorkPlace/MRI Fractures Project/"
 
-    csv_path = os.path.join(folder_path,'boundingInfo','SAGT1 bounding boxes.csv')
+    csv_path_SAGT1 = os.path.join(folder_path,'boundingInfo','SAGT1 bounding boxes.csv')
+    csv_path_SAGTIR = os.path.join(folder_path,'boundingInfo','SAGIR bounding boxes.csv')
+ 
     image_dir = os.path.join(my_path, 'MRI_Image','06192023 SFI renamed')
-    destination_folder = os.path.join(folder_path, 'SAGT1_Images')
+    destination_folder_SAGT1 = os.path.join(folder_path, 'SAGT1_Images')
+    destination_folder_SAGIR = os.path.join(folder_path, 'SAGIR_Images')
     #train_dir = os.path.join(folder_path, "train_data")
     #val_dir = os.path.join(folder_path, "validate")
     #test_dir = os.path.join(folder_path, "test_data")
-    main()
+    main('SAGIR')

@@ -1,4 +1,4 @@
-im,im_w,im_h,box_x,box_y,box_w,box_h,box_type
+image,original_width,original_height,value_x,value_y,value_width,value_height,value_rectanglelabels
 P001 SAGIR_007.jpg,256,256,60.80892608,38.77266388,7.391910739,12.41283124,['Edema']
 P001 SAGIR_008.jpg,256,256,62.62203626,39.05160391,7.112970711,9.205020921,['Edema']
 P001 SAGIR_009.jpg,256,256,62.06415621,36.68061367,10.73919107,12.69177127,['Edema']

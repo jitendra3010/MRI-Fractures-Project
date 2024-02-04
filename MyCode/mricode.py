@@ -6,12 +6,6 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 import torch.optim as optim
 
-#/content/train_data/P001 SAGT1_004.jpg
-
-#my_path = "/Users/Jiten/Masters/WorkPlace/MRI Fractures Project/SAGTImages"
-train_path = "/content/train_data"
-test_path = "/content/test_data"
-
 class CustomDataset(Dataset):
     def __init__(self, root_dir):
         """
@@ -105,45 +99,66 @@ class UNet(nn.Module):
 
         return output
 
-# def collate_fn(batch):
-#   images = [resize_image(image, size=(640, 640)) for image in batch['image']]
-#   return torch.stack(images, dim=0)
 
-# get the dataset
-dataset = CustomDataset(root_dir=train_path)
-train_loader = DataLoader(dataset, batch_size=32, shuffle=True, num_workers=0)
+def loadCustomData(img_dir):
 
-print(train_loader.dataset.root_dir)
-print(len(train_loader.dataset.image_list))
+    # get the dataset
+    dataset = CustomDataset(root_dir=img_dir)
+    train_loader = DataLoader(dataset, batch_size=32, shuffle=True, num_workers=0)
 
-# Instantiate the U-Net model
-in_channels = 1  # Assuming gray input
-out_channels = 1  # Number of classes for segmentation
-model = UNet(in_channels, out_channels)
+    print(train_loader.dataset.root_dir)
+    print(len(train_loader.dataset.image_list))
 
-# Define the loss function and optimizer
-criterion = nn.MSELoss()  # Mean Squared Error Loss for image-to-image translation
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+    return train_loader
 
-# Training loop
-num_epochs = 10  # Adjust as needed
 
-for epoch in range(num_epochs):
-    model.train()  # Set the model to training mode
-    for batch in train_loader:
-        images = batch['image']
+def runModel(train_loader):
 
-        images = images.reshape(-1, 1, 640, 640)
+    # Instantiate the U-Net model
+    in_channels = 1  # Assuming gray input
+    out_channels = 1  # Number of classes for segmentation
+    model = UNet(in_channels, out_channels)
 
-        # Forward pass
-        outputs = model(images)
+    # Define the loss function and optimizer
+    criterion = nn.MSELoss()  # Mean Squared Error Loss for image-to-image translation
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-        # For image-to-image translation, you may use a different loss function like L1 or L2 loss
-        loss = criterion(outputs, images)
+    # Training loop
+    num_epochs = 10  # Adjust as needed
 
-        # Backward pass and optimization
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+    for epoch in range(num_epochs):
+        model.train()  # Set the model to training mode
+        for batch in train_loader:
+            images = batch['image']
 
-    print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item()}')
+            images = images.reshape(-1, 1, 640, 640)
+
+            # Forward pass
+            outputs = model(images)
+
+            # For image-to-image translation, you may use a different loss function like L1 or L2 loss
+            loss = criterion(outputs, images)
+
+            # Backward pass and optimization
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item()}')
+
+    def main():
+
+        # load custom dataset
+        train_loader = loadCustomData(train_dir)
+
+        # run the model
+        runModel(train_loader)
+    
+    if __name__ == '__main__':
+        my_path = "/Users/jiten/Masters/WorkPlace/"
+        folder_path = "/Users/jiten/Masters/WorkPlace/MRI Fractures Project/"
+
+        #source_folder = os.path.join(folder_path, 'SAGT1_Images')
+        train_dir = os.path.join(folder_path, "train_data")
+        test_dir = os.path.join(folder_path, "test_data")
+        main()

@@ -30,6 +30,7 @@ def splitTrainTest():
 
 def main():
 
+    # split the data for train and test
     splitTrainTest()
 
 if __name__ == '__main__':
