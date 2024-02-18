@@ -41,7 +41,7 @@ def main(img):
        # get the bounding info into a dataframe
         df_bounding = pd.read_csv(csv_path_SAGT1)
     elif img == 'SAGIR':
-        df_bounding = pd.read_csv(csv_path_SAGTIR)
+        df_bounding = pd.read_csv(csv_path_SAGIR)
 
     # get the image names tha has a bounding info
     imgName = df_bounding['image']
@@ -54,7 +54,7 @@ if __name__ == '__main__':
     folder_path = "/Users/jiten/Masters/WorkPlace/MRI Fractures Project/"
 
     csv_path_SAGT1 = os.path.join(folder_path,'boundingInfo','SAGT1 bounding boxes.csv')
-    csv_path_SAGTIR = os.path.join(folder_path,'boundingInfo','SAGIR bounding boxes.csv')
+    csv_path_SAGIR = os.path.join(folder_path,'boundingInfo','SAGIR bounding boxes.csv')
  
     image_dir = os.path.join(my_path, 'MRI_Image','06192023 SFI renamed')
     destination_folder_SAGT1 = os.path.join(folder_path, 'SAGT1_Images')
