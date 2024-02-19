@@ -45,7 +45,7 @@ def main(img):
 
     # get the image names tha has a bounding info
     imgName = df_bounding['image']
-
+    
     # create_fodler()
     prepareData(imgName,img)
 

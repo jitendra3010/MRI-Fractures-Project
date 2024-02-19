@@ -7,13 +7,16 @@ from torchvision import transforms
 import torch.optim as optim
 
 class CustomDataset(Dataset):
-    def __init__(self, root_dir):
+    def __init__(self, root_dir,mask_dir):
         """
         Set the root directory , get list of images
         transform to tensor and normalize the data
         """
+        print("Initialize Custom Data")
         self.root_dir = root_dir
+        self.mask_dir = mask_dir
         self.image_list = os.listdir(root_dir)
+        self.mask_list = os.listdir(mask_dir)
         self.transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.5,), (0.5,)),  # Adjust normalization as needed
@@ -26,16 +29,16 @@ class CustomDataset(Dataset):
 
     def __getitem__(self, idx):
         img_name = os.path.join(self.root_dir, self.image_list[idx])
-        #mask_name = os.path.join(self.root_dir, 'masks', self.image_list[idx])  # Assuming masks have the same filenames
+        mask_name = os.path.join(self.mask_dir, self.image_list[idx])  # Assuming masks have the same filenames
 
         image = Image.open(img_name)
-        #mask = Image.open(mask_name).convert('L')  # Convert to grayscale if needed
+        mask = Image.open(mask_name).convert('L')  # Convert to grayscale if needed
 
         image = self.transform(image)
-        #mask = self.transform(mask)
+        mask = self.transform(mask)
 
-        #return {'image': image, 'mask': mask}
-        return{'image': image}
+        return {'image': image, 'mask': mask}
+        #return{'image': image}
 
 # unet architecture
 class UNet(nn.Module):
@@ -100,10 +103,10 @@ class UNet(nn.Module):
         return output
 
 
-def loadCustomData(img_dir):
+def loadCustomData(img_dir,msk_dir):
 
     # get the dataset
-    dataset = CustomDataset(root_dir=img_dir)
+    dataset = CustomDataset(root_dir=img_dir, mask_dir=msk_dir)
     train_loader = DataLoader(dataset, batch_size=32, shuffle=True, num_workers=0)
 
     print(train_loader.dataset.root_dir)
@@ -124,7 +127,7 @@ def runModel(train_loader):
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     # Training loop
-    num_epochs = 10  # Adjust as needed
+    num_epochs = 1  # Adjust as needed
 
     for epoch in range(num_epochs):
         model.train()  # Set the model to training mode
@@ -146,10 +149,15 @@ def runModel(train_loader):
 
         print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item()}')
 
-    def main():
+    def main(img):
+
+        train_dir = train_dir_dict[img]
+        mask_dir = train_mask_dir_dict[img]
+
+        print(f"Inside Main::::{train_dir}")
 
         # load custom dataset
-        train_loader = loadCustomData(train_dir)
+        train_loader = loadCustomData(train_dir,mask_dir)
 
         # run the model
         runModel(train_loader)
@@ -159,6 +167,38 @@ def runModel(train_loader):
         folder_path = "/Users/jiten/Masters/WorkPlace/MRI Fractures Project/"
 
         #source_folder = os.path.join(folder_path, 'SAGT1_Images')
-        train_dir = os.path.join(folder_path, "train_data")
-        test_dir = os.path.join(folder_path, "test_data")
-        main()
+        train_dir_SAGT1 = os.path.join(folder_path, "train_data_SAGT1")
+        test_dir_SAGT1 = os.path.join(folder_path, "test_data_SAGT1")
+        
+        train_dir_dict = {}
+        test_dir_dict ={}
+        #val_dir = os.path.join(folder_path, "validate")
+        train_dir_SAGT1 = os.path.join(folder_path, "train_data_SAGT1")
+        test_dir_SAGT1 = os.path.join(folder_path, "test_data_SAGT1")
+
+        train_dir_SAGIR = os.path.join(folder_path, "train_data_SAGIR")
+        test_dir_SAGIR = os.path.join(folder_path, "test_data_SAGIR")
+
+        train_dir_dict['SAGT1'] = train_dir_SAGT1
+        train_dir_dict['SAGIR'] = train_dir_SAGIR
+
+        test_dir_dict['SAGT1'] = test_dir_SAGT1
+        test_dir_dict['SAGIR'] = test_dir_SAGIR
+
+        # create the data structure for mask directories
+        train_mask_dir_dict = {}
+        test_mask_dir_dict = {}
+
+        train_mask_dir_SAGT1 = os.path.join(folder_path, "train_mask_SAGT1")
+        test_mask_dir_SAGT1 = os.path.join(folder_path, "test_mask_SAGT1")
+
+        train_mask_dir_SAGIR = os.path.join(folder_path, "train_mask_SAGIR")
+        test_mask_dir_SAGIR = os.path.join(folder_path, "test_mask_SAGIR")
+
+        train_mask_dir_dict['SAGT1'] = train_mask_dir_SAGT1
+        train_mask_dir_dict['SAGIR'] = train_mask_dir_SAGIR
+
+        test_mask_dir_dict['SAGT1'] = test_mask_dir_SAGT1
+        test_mask_dir_dict['SAGIR'] = test_mask_dir_SAGIR
+        print("Call main for SAGIR")
+        main('SAGIR')
