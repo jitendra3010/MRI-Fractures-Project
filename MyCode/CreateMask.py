@@ -67,7 +67,7 @@ def createMask(df_bounding, source, dest):
                 mask_image = generateMask(img_width, img_height, x, y, w, h)
 
                 # change the file name if there are multiple masks
-                if(condition.sum() >1):
+                if(condition.sum() >1 and i !=0):
                     file_name , ext = os.path.splitext(file)
 
                     file_name = file_name + '_' + str(i)

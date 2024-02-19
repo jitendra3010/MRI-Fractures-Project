@@ -149,56 +149,56 @@ def runModel(train_loader):
 
         print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item()}')
 
-    def main(img):
+def main(img):
 
-        train_dir = train_dir_dict[img]
-        mask_dir = train_mask_dir_dict[img]
+    train_dir = train_dir_dict[img]
+    mask_dir = train_mask_dir_dict[img]
 
-        print(f"Inside Main::::{train_dir}")
+    print(f"Inside Main::::{train_dir}")
 
-        # load custom dataset
-        train_loader = loadCustomData(train_dir,mask_dir)
+    # load custom dataset
+    train_loader = loadCustomData(train_dir,mask_dir)
 
-        # run the model
-        runModel(train_loader)
+    # run the model
+    runModel(train_loader)
     
-    if __name__ == '__main__':
-        my_path = "/Users/jiten/Masters/WorkPlace/"
-        folder_path = "/Users/jiten/Masters/WorkPlace/MRI Fractures Project/"
+if __name__ == '__main__':
+    my_path = "/Users/jiten/Masters/WorkPlace/"
+    folder_path = "/Users/jiten/Masters/WorkPlace/MRI Fractures Project/"
 
-        #source_folder = os.path.join(folder_path, 'SAGT1_Images')
-        train_dir_SAGT1 = os.path.join(folder_path, "train_data_SAGT1")
-        test_dir_SAGT1 = os.path.join(folder_path, "test_data_SAGT1")
+    #source_folder = os.path.join(folder_path, 'SAGT1_Images')
+    train_dir_SAGT1 = os.path.join(folder_path, "train_data_SAGT1")
+    test_dir_SAGT1 = os.path.join(folder_path, "test_data_SAGT1")
         
-        train_dir_dict = {}
-        test_dir_dict ={}
-        #val_dir = os.path.join(folder_path, "validate")
-        train_dir_SAGT1 = os.path.join(folder_path, "train_data_SAGT1")
-        test_dir_SAGT1 = os.path.join(folder_path, "test_data_SAGT1")
+    train_dir_dict = {}
+    test_dir_dict ={}
+    #val_dir = os.path.join(folder_path, "validate")
+    train_dir_SAGT1 = os.path.join(folder_path, "train_data_SAGT1")
+    test_dir_SAGT1 = os.path.join(folder_path, "test_data_SAGT1")
 
-        train_dir_SAGIR = os.path.join(folder_path, "train_data_SAGIR")
-        test_dir_SAGIR = os.path.join(folder_path, "test_data_SAGIR")
+    train_dir_SAGIR = os.path.join(folder_path, "train_data_SAGIR")
+    test_dir_SAGIR = os.path.join(folder_path, "test_data_SAGIR")
 
-        train_dir_dict['SAGT1'] = train_dir_SAGT1
-        train_dir_dict['SAGIR'] = train_dir_SAGIR
+    train_dir_dict['SAGT1'] = train_dir_SAGT1
+    train_dir_dict['SAGIR'] = train_dir_SAGIR
 
-        test_dir_dict['SAGT1'] = test_dir_SAGT1
-        test_dir_dict['SAGIR'] = test_dir_SAGIR
+    test_dir_dict['SAGT1'] = test_dir_SAGT1
+    test_dir_dict['SAGIR'] = test_dir_SAGIR
 
-        # create the data structure for mask directories
-        train_mask_dir_dict = {}
-        test_mask_dir_dict = {}
+    # create the data structure for mask directories
+    train_mask_dir_dict = {}
+    test_mask_dir_dict = {}
 
-        train_mask_dir_SAGT1 = os.path.join(folder_path, "train_mask_SAGT1")
-        test_mask_dir_SAGT1 = os.path.join(folder_path, "test_mask_SAGT1")
+    train_mask_dir_SAGT1 = os.path.join(folder_path, "train_mask_SAGT1")
+    test_mask_dir_SAGT1 = os.path.join(folder_path, "test_mask_SAGT1")
 
-        train_mask_dir_SAGIR = os.path.join(folder_path, "train_mask_SAGIR")
-        test_mask_dir_SAGIR = os.path.join(folder_path, "test_mask_SAGIR")
+    train_mask_dir_SAGIR = os.path.join(folder_path, "train_mask_SAGIR")
+    test_mask_dir_SAGIR = os.path.join(folder_path, "test_mask_SAGIR")
 
-        train_mask_dir_dict['SAGT1'] = train_mask_dir_SAGT1
-        train_mask_dir_dict['SAGIR'] = train_mask_dir_SAGIR
+    train_mask_dir_dict['SAGT1'] = train_mask_dir_SAGT1
+    train_mask_dir_dict['SAGIR'] = train_mask_dir_SAGIR
 
-        test_mask_dir_dict['SAGT1'] = test_mask_dir_SAGT1
-        test_mask_dir_dict['SAGIR'] = test_mask_dir_SAGIR
-        print("Call main for SAGIR")
-        main('SAGIR')
+    test_mask_dir_dict['SAGT1'] = test_mask_dir_SAGT1
+    test_mask_dir_dict['SAGIR'] = test_mask_dir_SAGIR
+    print("Call main for SAGIR")
+    main('SAGIR')
