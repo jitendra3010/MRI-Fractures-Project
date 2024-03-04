@@ -5,6 +5,7 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 import torch.optim as optim
+import torch.nn.functional as F
 
 class CustomDataset(Dataset):
     def __init__(self, root_dir,mask_dir):
@@ -15,13 +16,13 @@ class CustomDataset(Dataset):
         print("Initialize Custom Data")
         self.root_dir = root_dir
         self.mask_dir = mask_dir
-        self.image_list = os.listdir(root_dir)
-        self.mask_list = os.listdir(mask_dir)
+        self.image_list = [file for file in os.listdir(root_dir) if file.lower().endswith(('jpg', 'jpeg', 'png', 'bmp', 'gif'))]
+        self.mask_list = [file for file in os.listdir(mask_dir) if file.lower().endswith(('jpg', 'jpeg', 'png', 'bmp', 'gif'))]
         self.transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.5,), (0.5,)),  # Adjust normalization as needed
             # mean and standard deviation tuple sent as parameter for normalization
-            transforms.Resize((640, 640))
+            transforms.Resize((128, 128), antialias=True)
         ])
 
     def __len__(self):
@@ -46,22 +47,22 @@ class UNet(nn.Module):
         super(UNet, self).__init__()
 
         # Contracting path
-        self.conv1 = self.conv_block(in_channels, 64)
-        self.conv2 = self.conv_block(64, 128)
-        self.conv3 = self.conv_block(128, 256)
-        self.conv4 = self.conv_block(256, 512)
+        self.conv1 = self.conv_block(in_channels, 8)
+        self.conv2 = self.conv_block(8, 16 )
+        self.conv3 = self.conv_block(16, 32)
+        self.conv4 = self.conv_block(32, 64)
 
         # Bottleneck
-        self.bottleneck = self.conv_block(512, 1024)
+        self.bottleneck = self.conv_block(64, 128)
 
         # Expansive path
-        self.upconv4 = self.upconv_block(1024, 512)
-        self.upconv3 = self.upconv_block(512, 256)
-        self.upconv2 = self.upconv_block(256, 128)
-        self.upconv1 = self.upconv_block(128, 64)
+        self.upconv4 = self.upconv_block(128, 64)
+        self.upconv3 = self.upconv_block(64, 32)
+        self.upconv2 = self.upconv_block(32, 16)
+        self.upconv1 = self.upconv_block(16, 8)
 
         # Output layer
-        self.out_conv = nn.Conv2d(64, out_channels, kernel_size=1)
+        self.out_conv = nn.Conv2d(8, out_channels, kernel_size=1)
 
     def conv_block(self, in_channels, out_channels):
         return nn.Sequential(
@@ -73,7 +74,7 @@ class UNet(nn.Module):
 
     def upconv_block(self, in_channels, out_channels):
         return nn.Sequential(
-            nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2),
+            nn.ConvTranspose2d(in_channels, out_channels, kernel_size=1, stride=1),
             nn.ReLU(inplace=True)
         )
 
@@ -89,7 +90,12 @@ class UNet(nn.Module):
 
         # Expansive path
         upconv4 = self.upconv4(bottleneck)
+        # adding the interpolation to match spatial dimension for upconv4 and conv4
+        #conv4_upsampled = F.interpolate(conv4, scale_factor=2, mode='bilinear', align_corners=True)
+        print("Conv4 shape::",conv4.shape)
+        print("Before Cat upconv4::",upconv4.shape)
         upconv4 = torch.cat([upconv4, conv4], dim=1)
+        print("Aftter cat upconv4::",upconv4.shape)
         upconv3 = self.upconv3(upconv4)
         upconv3 = torch.cat([upconv3, conv3], dim=1)
         upconv2 = self.upconv2(upconv3)
@@ -134,7 +140,7 @@ def runModel(train_loader):
         for batch in train_loader:
             images = batch['image']
 
-            images = images.reshape(-1, 1, 640, 640)
+            images = images.reshape(-1, 1, 128, 128)
 
             # Forward pass
             outputs = model(images)
@@ -161,10 +167,10 @@ def main(img):
 
     # run the model
     runModel(train_loader)
-    
+
 if __name__ == '__main__':
     my_path = "/Users/jiten/Masters/WorkPlace/"
-    folder_path = "/Users/jiten/Masters/WorkPlace/MRI Fractures Project/"
+    folder_path = os.path.dirname(os.getcwd())#"/Users/jiten/Masters/WorkPlace/MRI Fractures Project/"
 
     #source_folder = os.path.join(folder_path, 'SAGT1_Images')
     train_dir_SAGT1 = os.path.join(folder_path, "train_data_SAGT1")
