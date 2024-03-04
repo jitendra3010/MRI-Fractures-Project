@@ -2,7 +2,6 @@ import pandas as pd
 import os
 from PIL import Image, ImageDraw
 import shutil
-import cv2
 
 def main(img):
 
