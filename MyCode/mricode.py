@@ -5,6 +5,10 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 import torch.optim as optim
+import torch.nn.functional as F
+import matplotlib.pyplot as plt
+import csv
+import pandas as pd
 
 class CustomDataset(Dataset):
     def __init__(self, root_dir,mask_dir):
@@ -15,13 +19,13 @@ class CustomDataset(Dataset):
         print("Initialize Custom Data")
         self.root_dir = root_dir
         self.mask_dir = mask_dir
-        self.image_list = os.listdir(root_dir)
-        self.mask_list = os.listdir(mask_dir)
+        self.image_list = [file for file in os.listdir(root_dir) if file.lower().endswith(('jpg', 'jpeg', 'png', 'bmp', 'gif'))]
+        self.mask_list = [file for file in os.listdir(mask_dir) if file.lower().endswith(('jpg', 'jpeg', 'png', 'bmp', 'gif'))]
         self.transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.5,), (0.5,)),  # Adjust normalization as needed
             # mean and standard deviation tuple sent as parameter for normalization
-            transforms.Resize((256, 256))
+            transforms.Resize((256, 256), antialias=True)
         ])
 
     def __len__(self):
@@ -37,8 +41,10 @@ class CustomDataset(Dataset):
         image = self.transform(image)
         mask = self.transform(mask)
 
-        return {'image': image, 'mask': mask}
-        #return{'image': image}
+        #print("getItem:: image length::",image.shape)
+        #print("getItem:: mask length::",mask.shape)
+
+        return image, mask
 
 # unet architecture
 class UNet(nn.Module):
@@ -46,22 +52,22 @@ class UNet(nn.Module):
         super(UNet, self).__init__()
 
         # Contracting path
-        self.conv1 = self.conv_block(in_channels, 64)
-        self.conv2 = self.conv_block(64, 128)
-        self.conv3 = self.conv_block(128, 256)
-        self.conv4 = self.conv_block(256, 512)
+        self.conv1 = self.conv_block(in_channels, 8)
+        self.conv2 = self.conv_block(8, 16 )
+        self.conv3 = self.conv_block(16, 32)
+        self.conv4 = self.conv_block(32, 64)
 
         # Bottleneck
-        self.bottleneck = self.conv_block(512, 1024)
+        self.bottleneck = self.conv_block(64, 128)
 
         # Expansive path
-        self.upconv4 = self.upconv_block(1024, 512)
-        self.upconv3 = self.upconv_block(512, 256)
-        self.upconv2 = self.upconv_block(256, 128)
-        self.upconv1 = self.upconv_block(128, 64)
+        self.upconv4 = self.upconv_block(128, 64)
+        self.upconv3 = self.upconv_block(128, 32)
+        self.upconv2 = self.upconv_block(64, 48)
+        self.upconv1 = self.upconv_block(64, 8)
 
         # Output layer
-        self.out_conv = nn.Conv2d(64, out_channels, kernel_size=1)
+        self.out_conv = nn.Conv2d(16, out_channels, kernel_size=1)
 
     def conv_block(self, in_channels, out_channels):
         return nn.Sequential(
@@ -73,11 +79,12 @@ class UNet(nn.Module):
 
     def upconv_block(self, in_channels, out_channels):
         return nn.Sequential(
-            nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2),
+            nn.ConvTranspose2d(in_channels, out_channels, kernel_size=1, stride=1),
             nn.ReLU(inplace=True)
         )
 
     def forward(self, x):
+        print("x shape::",x.shape)
         # Contracting path
         conv1 = self.conv1(x)
         conv2 = self.conv2(conv1)
@@ -95,7 +102,11 @@ class UNet(nn.Module):
         upconv2 = self.upconv2(upconv3)
         upconv2 = torch.cat([upconv2, conv2], dim=1)
         upconv1 = self.upconv1(upconv2)
+        #print("Conv1::",conv1.shape)
+        #print("Before cat::",upconv1.shape)
         upconv1 = torch.cat([upconv1, conv1], dim=1)
+        #print("After cat:::",upconv1.shape)
+        
 
         # Output layer
         output = self.out_conv(upconv1)
@@ -105,12 +116,13 @@ class UNet(nn.Module):
 
 def loadCustomData(img_dir,msk_dir):
 
+    batchSize = 30
     # get the dataset
     dataset = CustomDataset(root_dir=img_dir, mask_dir=msk_dir)
-    train_loader = DataLoader(dataset, batch_size=32, shuffle=True, num_workers=0)
+    train_loader = DataLoader(dataset, batch_size=batchSize, shuffle=True, num_workers=0)
 
-    print(train_loader.dataset.root_dir)
-    print(len(train_loader.dataset.image_list))
+    print("Train loader root directory::",train_loader.dataset.root_dir)
+    print("Total train Size:::",len(train_loader.dataset.image_list))
 
     return train_loader
 
@@ -121,6 +133,7 @@ def runModel(train_loader):
     in_channels = 1  # Assuming gray input
     out_channels = 1  # Number of classes for segmentation
     model = UNet(in_channels, out_channels)
+    device = "cpu"
 
     # Define the loss function and optimizer
     criterion = nn.MSELoss()  # Mean Squared Error Loss for image-to-image translation
@@ -129,18 +142,26 @@ def runModel(train_loader):
     # Training loop
     num_epochs = 1  # Adjust as needed
 
-    for epoch in range(num_epochs):
-        model.train()  # Set the model to training mode
-        for batch in train_loader:
-            images = batch['image']
+    #loss_val = []
+    loss_df = pd.DataFrame(columns=['epoch', 'loss_val'])
 
+    for epoch in range(num_epochs):
+        #print(f"Run of epoch {epoch} begin..")
+        model.train()  # Set the model to training mode
+        for images, labels in train_loader:
+
+            images, labels = images.to(device), labels.to(device)
+
+            # reshape the images and the labels
             images = images.reshape(-1, 1, 256, 256)
+            labels = labels.reshape(-1, 1, 256, 256) 
 
             # Forward pass
-            outputs = model(images)
+            outputs = model.forward(images)
 
             # For image-to-image translation, you may use a different loss function like L1 or L2 loss
-            loss = criterion(outputs, images)
+            #loss = criterion(outputs, images) # pass the mask with the output as the lables
+            loss = criterion(outputs, labels)
 
             # Backward pass and optimization
             optimizer.zero_grad()
@@ -149,12 +170,33 @@ def runModel(train_loader):
 
         print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item()}')
 
+        # add the record to the loss df
+        loss_df.loc[len(loss_df)] = [epoch+1, loss.item()]
+        #loss_val.append(loss.item())
+
+    plotLoss(loss_df['loss_val'], loss_df['epoch'])
+    
+    # Write the DataFrame to a CSV file
+    loss_df.to_csv('LossOutput.csv', index=False)
+
+def plotLoss(y,x):
+    """
+    Plot the x an y
+    """
+    plt.figure()
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.title("Loss in each epoch")
+    plt.plot(x,y)
+    plt.show()
+
+
 def main(img):
 
     train_dir = train_dir_dict[img]
     mask_dir = train_mask_dir_dict[img]
 
-    print(f"Inside Main::::{train_dir}")
+    #print(f"Inside Main::::{train_dir}")
 
     # load custom dataset
     train_loader = loadCustomData(train_dir,mask_dir)
