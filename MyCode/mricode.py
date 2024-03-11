@@ -35,7 +35,7 @@ class CustomDataset(Dataset):
         img_name = os.path.join(self.root_dir, self.image_list[idx])
         mask_name = os.path.join(self.mask_dir, self.image_list[idx])  # Assuming masks have the same filenames
 
-        image = Image.open(img_name)
+        image = Image.open(img_name).convert('L')
         mask = Image.open(mask_name).convert('L')  # Convert to grayscale if needed
 
         image = self.transform(image)
@@ -132,15 +132,18 @@ def runModel(train_loader):
     # Instantiate the U-Net model
     in_channels = 1  # Assuming gray input
     out_channels = 1  # Number of classes for segmentation
-    model = UNet(in_channels, out_channels)
-    device = "cpu"
+    #device = torch.device('cuda')
+    device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
 
+    #model = UNet(in_channels, out_channels).to(device)
+    model = UNet(in_channels, out_channels).to(device)
+    
     # Define the loss function and optimizer
     criterion = nn.MSELoss()  # Mean Squared Error Loss for image-to-image translation
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     # Training loop
-    num_epochs = 1  # Adjust as needed
+    num_epochs = 10 # Adjust as needed
 
     #loss_val = []
     loss_df = pd.DataFrame(columns=['epoch', 'loss_val'])
@@ -150,11 +153,11 @@ def runModel(train_loader):
         model.train()  # Set the model to training mode
         for images, labels in train_loader:
 
-            images, labels = images.to(device), labels.to(device)
+            #images, labels = images.to(device), labels.to(device)
 
             # reshape the images and the labels
-            images = images.reshape(-1, 1, 256, 256)
-            labels = labels.reshape(-1, 1, 256, 256) 
+            images = images.reshape(-1, 1, 256, 256).to(device)
+            labels = labels.reshape(-1, 1, 256, 256).to(device) 
 
             # Forward pass
             outputs = model.forward(images)
@@ -174,22 +177,11 @@ def runModel(train_loader):
         loss_df.loc[len(loss_df)] = [epoch+1, loss.item()]
         #loss_val.append(loss.item())
 
-    plotLoss(loss_df['loss_val'], loss_df['epoch'])
+    #plotLoss(loss_df['loss_val'], loss_df['epoch'])
+    loss_df.plot(x='epoch', y='loss_val')
     
     # Write the DataFrame to a CSV file
     loss_df.to_csv('LossOutput.csv', index=False)
-
-def plotLoss(y,x):
-    """
-    Plot the x an y
-    """
-    plt.figure()
-    plt.xlabel("Epochs")
-    plt.ylabel("Loss")
-    plt.title("Loss in each epoch")
-    plt.plot(x,y)
-    plt.show()
-
 
 def main(img):
 
