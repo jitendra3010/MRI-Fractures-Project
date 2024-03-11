@@ -207,10 +207,10 @@ def main(img):
     # run the model
     runModel(train_loader)
 
-    test_dir = test_dir_dict[img]
-    mask_dir_test = test_mask_dir_dict[img]
+    #test_dir = test_dir_dict[img]
+    #mask_dir_test = test_mask_dir_dict[img]
 
-    test_loader = loadCustomData(test_dir, )
+    #test_loader = loadCustomData(test_dir, )
 
     # run the model
 
