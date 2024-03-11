@@ -41,10 +41,8 @@ class CustomDataset(Dataset):
         image = self.transform(image)
         mask = self.transform(mask)
 
-        #print("getItem:: image length::",image.shape)
-        #print("getItem:: mask length::",mask.shape)
-
-        return image, mask
+        return {'image': image, 'mask': mask}
+        #return{'image': image}
 
 # unet architecture
 class UNet(nn.Module):
@@ -84,7 +82,6 @@ class UNet(nn.Module):
         )
 
     def forward(self, x):
-        print("x shape::",x.shape)
         # Contracting path
         conv1 = self.conv1(x)
         conv2 = self.conv2(conv1)
@@ -97,10 +94,16 @@ class UNet(nn.Module):
         # Expansive path
         upconv4 = self.upconv4(bottleneck)
         upconv4 = torch.cat([upconv4, conv4], dim=1)
+        #print("upconv4::",upconv4.shape)
+        
         upconv3 = self.upconv3(upconv4)
         upconv3 = torch.cat([upconv3, conv3], dim=1)
+        #print("upconv3::",upconv3.shape)
+        
         upconv2 = self.upconv2(upconv3)
         upconv2 = torch.cat([upconv2, conv2], dim=1)
+        #print("upconv2::",upconv2.shape)
+        
         upconv1 = self.upconv1(upconv2)
         #print("Conv1::",conv1.shape)
         #print("Before cat::",upconv1.shape)
@@ -110,16 +113,18 @@ class UNet(nn.Module):
 
         # Output layer
         output = self.out_conv(upconv1)
-
+        #print("Output::",output.shape)
         return output
 
 
 def loadCustomData(img_dir,msk_dir):
+    
+    batchSize = 30
 
     batchSize = 30
     # get the dataset
     dataset = CustomDataset(root_dir=img_dir, mask_dir=msk_dir)
-    train_loader = DataLoader(dataset, batch_size=batchSize, shuffle=True, num_workers=0)
+    train_loader = DataLoader(dataset, batch_size=32, shuffle=True, num_workers=0)
 
     print("Train loader root directory::",train_loader.dataset.root_dir)
     print("Total train Size:::",len(train_loader.dataset.image_list))
@@ -132,35 +137,25 @@ def runModel(train_loader):
     # Instantiate the U-Net model
     in_channels = 1  # Assuming gray input
     out_channels = 1  # Number of classes for segmentation
-    #device = torch.device('cuda')
-    device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
+    model = UNet(in_channels, out_channels)
 
-    #model = UNet(in_channels, out_channels).to(device)
-    model = UNet(in_channels, out_channels).to(device)
-    
     # Define the loss function and optimizer
     criterion = nn.MSELoss()  # Mean Squared Error Loss for image-to-image translation
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     # Training loop
-    num_epochs = 10 # Adjust as needed
-
-    #loss_val = []
-    loss_df = pd.DataFrame(columns=['epoch', 'loss_val'])
+    num_epochs = 1  # Adjust as needed
 
     for epoch in range(num_epochs):
         #print(f"Run of epoch {epoch} begin..")
         model.train()  # Set the model to training mode
-        for images, labels in train_loader:
+        for batch in train_loader:
+            images = batch['image']
 
-            #images, labels = images.to(device), labels.to(device)
-
-            # reshape the images and the labels
-            images = images.reshape(-1, 1, 256, 256).to(device)
-            labels = labels.reshape(-1, 1, 256, 256).to(device) 
+            images = images.reshape(-1, 1, 640, 640)
 
             # Forward pass
-            outputs = model.forward(images)
+            outputs = model(images)
 
             # For image-to-image translation, you may use a different loss function like L1 or L2 loss
             #loss = criterion(outputs, images) # pass the mask with the output as the lables
@@ -172,16 +167,6 @@ def runModel(train_loader):
             optimizer.step()
 
         print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item()}')
-
-        # add the record to the loss df
-        loss_df.loc[len(loss_df)] = [epoch+1, loss.item()]
-        #loss_val.append(loss.item())
-
-    #plotLoss(loss_df['loss_val'], loss_df['epoch'])
-    loss_df.plot(x='epoch', y='loss_val')
-    
-    # Write the DataFrame to a CSV file
-    loss_df.to_csv('LossOutput.csv', index=False)
 
 def main(img):
 
@@ -195,19 +180,10 @@ def main(img):
 
     # run the model
     runModel(train_loader)
-
-    test_dir = test_dir_dict[img]
-    mask_dir_test = test_mask_dir_dict[img]
-
-    test_loader = loadCustomData(test_dir, mask_dir_test)
-
-    # run the model
-
-
     
 if __name__ == '__main__':
     my_path = "/Users/jiten/Masters/WorkPlace/"
-    folder_path = os.getcwd() #"/Users/jiten/Masters/WorkPlace/MRI Fractures Project/"
+    folder_path = "/Users/jiten/Masters/WorkPlace/MRI Fractures Project/"
 
     #source_folder = os.path.join(folder_path, 'SAGT1_Images')
     train_dir_SAGT1 = os.path.join(folder_path, "train_data_SAGT1")
