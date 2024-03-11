@@ -220,6 +220,8 @@ if __name__ == '__main__':
     my_path = "/Users/jiten/Masters/WorkPlace/"
     folder_path = os.getcwd() #"/Users/jiten/Masters/WorkPlace/MRI Fractures Project/"
 
+    folder_path = os.path.dirname(folder_path)
+
     #source_folder = os.path.join(folder_path, 'SAGT1_Images')
     train_dir_SAGT1 = os.path.join(folder_path, "train_data_SAGT1")
     test_dir_SAGT1 = os.path.join(folder_path, "test_data_SAGT1")
