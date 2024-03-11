@@ -195,6 +195,15 @@ def main(img):
 
     # run the model
     runModel(train_loader)
+
+    test_dir = test_dir_dict[img]
+    mask_dir_test = test_mask_dir_dict[img]
+
+    test_loader = loadCustomData(test_dir, mask_dir_test)
+
+    # run the model
+
+
     
 if __name__ == '__main__':
     my_path = "/Users/jiten/Masters/WorkPlace/"
