@@ -177,9 +177,6 @@ def runModel(train_loader):
         loss_df.loc[len(loss_df)] = [epoch+1, loss.item()]
         #loss_val.append(loss.item())
 
-    #plotLoss(loss_df['loss_val'], loss_df['epoch'])
-    loss_df.plot(x='epoch', y='loss_val')
-    
     # Write the DataFrame to a CSV file
     loss_df.to_csv('LossOutput.csv', index=False)
 
