@@ -132,8 +132,8 @@ def runModel(train_loader):
     # Instantiate the U-Net model
     in_channels = 1  # Assuming gray input
     out_channels = 1  # Number of classes for segmentation
-    #device = torch.device('cuda')
-    device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
+    device = torch.device('cuda')
+    #device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
 
     #model = UNet(in_channels, out_channels).to(device)
     model = UNet(in_channels, out_channels).to(device)
@@ -178,7 +178,7 @@ def runModel(train_loader):
         #loss_val.append(loss.item())
 
     # Write the DataFrame to a CSV file
-    loss_df.to_csv('LossOutput.csv', index=False)
+    loss_df.to_csv('../Result/LossOutput.csv', index=False)
 
 def main(img):
 
