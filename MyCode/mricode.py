@@ -141,14 +141,18 @@ def runModel(train_loader):
     in_channels = 1  # Assuming gray input
     out_channels = 1  # Number of classes for segmentation
     model = UNet(in_channels, out_channels)
-    device = torch.device('cuda' if torch.backends.mps.is_available() else 'cpu')
+    #device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
+    device = torch.device('cuda')
+
+    print(device)
+    model.to(device)
 
     # Define the loss function and optimizer
     criterion = nn.MSELoss()  # Mean Squared Error Loss for image-to-image translation
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     # Training loop
-    num_epochs = 10  # Adjust as needed
+    num_epochs = 50  # Adjust as needed
 
     #loss_val = []
     loss_df = pd.DataFrame(columns=['epoch', 'loss_val'])
@@ -190,7 +194,7 @@ def runModel(train_loader):
     #loss_df.plot(x='epoch', y='loss_val')
 
     # Write the DataFrame to a CSV file
-    loss_df.to_csv('LossOutput.csv', index=False)
+    loss_df.to_csv('../Result/LossOutput_train.csv', index=False)
 
 
 def main(img):
