@@ -132,8 +132,8 @@ def runModel(train_loader):
     # Instantiate the U-Net model
     in_channels = 1  # Assuming gray input
     out_channels = 1  # Number of classes for segmentation
-    #device = torch.device('cuda')
-    device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
+    device = torch.device('cuda')
+    #device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
 
     #model = UNet(in_channels, out_channels).to(device)
     model = UNet(in_channels, out_channels).to(device)
