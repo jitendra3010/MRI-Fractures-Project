@@ -8,7 +8,7 @@ def main(img, train_flag=True):
         mask_dir = train_mask_dir_dict[img]
 
         # initialize agent
-        agent = Agent(train_flag,img_dir=train_dir,msk_dir=mask_dir,num_epochs=1, batchSize=30)
+        agent = Agent(train_flag,img_dir=train_dir,msk_dir=mask_dir,folder_path=folder_path,num_epochs=1, batchSize=30)
         agent.initializeUnet()
 
         # load custom dataset
@@ -27,7 +27,7 @@ def main(img, train_flag=True):
         test_dir = test_dir_dict[img]
         mask_dir_test = test_mask_dir_dict[img]
 
-        agent = Agent(train_flag,img_dir=test_dir,msk_dir=mask_dir_test,state='old',num_epochs=1, batchSize=30)
+        agent = Agent(train_flag,img_dir=test_dir,msk_dir=mask_dir_test,folder_path=folder_path,state='old',num_epochs=1, batchSize=30)
         agent.initializeUnet('UNetMar 26, 2024 02_20AM')
         
         test_loader = agent.loadCustomData()
@@ -35,6 +35,9 @@ def main(img, train_flag=True):
         predictions = agent.runModel(test_loader)
 
         print(len(predictions))
+
+        Agent.savePredictions(loader=test_loader, predictions=predictions)
+        #test_loader.dataset.image_list
 
         #mask_dir_test = test_mask_dir_dict[img]
 
@@ -54,9 +57,9 @@ if __name__ == '__main__':
     my_path = "/Users/jiten/Masters/WorkPlace/"
     folder_path = os.getcwd() #"/Users/jiten/Masters/WorkPlace/MRI Fractures Project/"
     
-    print(folder_path)
+    folder_path = os.path.dirname(folder_path)
 
-    #folder_path = os.path.dirname(folder_path)
+    print(folder_path)
 
     #source_folder = os.path.join(folder_path, 'SAGT1_Images')
     train_dir_SAGT1 = os.path.join(folder_path, "train_data_SAGT1")
