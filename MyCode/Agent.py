@@ -9,9 +9,11 @@ import torch.optim as optim
 import pandas as pd
 import os
 import datetime
+from PIL import Image
+import numpy as np
 
 class Agent:
-    def __init__(self, train_flag, img_dir, msk_dir, batchSize=10, num_epochs=1, state='new'):
+    def __init__(self, train_flag, img_dir, msk_dir, folder_path, batchSize=10, num_epochs=1, state='new'):
         self.train_flag = train_flag
         self.img_dir = img_dir
         self.msk_dir = msk_dir
@@ -23,7 +25,7 @@ class Agent:
         print(self.device)
         self.model =  None
         self.state = state
-        folder_path = os.getcwd()
+        self.folder_path = folder_path
         self.models_path = os.path.join(folder_path, "Models") 
 
 
@@ -113,10 +115,27 @@ class Agent:
                 predictions.append(outputs)
 
             # Combine predictions from all batches
-            #predictions = torch.cat(predictions, dim=0)
+            predictions = torch.cat(predictions, dim=0)
             return predictions
 
 
     def writeRun(self, dataframe, filename):
         
         dataframe.to_csv(filename, index=False)
+
+    def savePredictions(self, loader, predictions):
+
+        image_names = loader.dataset.image_list
+
+        pred_save_path = os.path.join(self.folder_path,"Predictions")
+
+        for name, pred in zip(image_names, predictions):
+            file_path = os.path.join(pred_save_path,name)
+
+            # Convert the tensor to a numpy
+            img_pil = pred.cpu().numpy()
+
+            predicted_image = Image.fromarray(img_pil.astype(np.uint8))
+
+            predicted_image.save(file_path)
+
