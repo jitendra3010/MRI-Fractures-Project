@@ -22,6 +22,7 @@ class Agent:
         self.in_channels = 1    # Assuming gray input
         self.out_channels = 1   # No of classes for segmentation
         self.device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
+        #self.device = torch.device('cuda')
         print(self.device)
         self.model =  None
         self.state = state
