@@ -18,7 +18,8 @@ def main(img, train_flag=True):
         loss_df = agent.runModel(train_loader)
 
          # write the run
-        agent.writeRun(loss_df,'Result/LoassOutput.csv')
+        w_path = os.path.join(folder_path,"Result","LossOutput.csv")
+        agent.writeRun(loss_df,w_path)
 
          # save the net
         agent.save_net(file_name='UNet')
