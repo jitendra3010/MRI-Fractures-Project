@@ -37,7 +37,7 @@ def main(img, train_flag=True):
 
         print(len(predictions))
 
-        Agent.savePredictions(loader=test_loader, predictions=predictions)
+        agent.savePredictions(loader=test_loader, predictions=predictions)
         #test_loader.dataset.image_list
 
         #mask_dir_test = test_mask_dir_dict[img]
