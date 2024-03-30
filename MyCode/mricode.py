@@ -28,7 +28,7 @@ def main(img, train_flag=True):
         mask_dir_test = test_mask_dir_dict[img]
 
         agent = Agent(train_flag,img_dir=test_dir,msk_dir=mask_dir_test,folder_path=folder_path,state='old',num_epochs=1, batchSize=30)
-        agent.initializeUnet('UNetMar 26, 2024 02_20AM')
+        agent.initializeUnet('UNetMar 29, 2024 06_45PM')
         
         test_loader = agent.loadCustomData()
 
