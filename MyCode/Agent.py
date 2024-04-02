@@ -134,7 +134,7 @@ class Agent:
             file_path = os.path.join(pred_save_path,name)
 
             # Convert the tensor to a numpy
-            img_pil = pred.cpu().numpy()
+            img_pil = pred.detach().numpy()
 
             predicted_image = Image.fromarray(img_pil.astype(np.uint8))
 
