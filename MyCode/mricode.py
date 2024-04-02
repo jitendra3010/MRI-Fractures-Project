@@ -8,7 +8,7 @@ def main(img, train_flag=True):
         mask_dir = train_mask_dir_dict[img]
 
         # initialize agent
-        agent = Agent(train_flag,img_dir=train_dir,msk_dir=mask_dir,folder_path=folder_path,num_epochs=1, batchSize=30)
+        agent = Agent(train_flag,img_dir=train_dir,msk_dir=mask_dir,folder_path=folder_path,num_epochs=10, batchSize=30)
         agent.initializeUnet()
 
         # load custom dataset
@@ -58,7 +58,7 @@ if __name__ == '__main__':
     my_path = "/Users/jiten/Masters/WorkPlace/"
     folder_path = os.getcwd() #"/Users/jiten/Masters/WorkPlace/MRI Fractures Project/"
     
-    folder_path = os.path.dirname(folder_path)
+    #folder_path = os.path.dirname(folder_path)
 
     print(folder_path)
 

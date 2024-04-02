@@ -21,8 +21,8 @@ class Agent:
         self.num_epochs = num_epochs
         self.in_channels = 1    # Assuming gray input
         self.out_channels = 1   # No of classes for segmentation
-        self.device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
-        #self.device = torch.device('cuda')
+        #self.device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
+        self.device = torch.device('cuda')
         print(self.device)
         self.model =  None
         self.state = state
@@ -134,7 +134,10 @@ class Agent:
             file_path = os.path.join(pred_save_path,name)
 
             # Convert the tensor to a numpy
-            img_pil = pred.detach().numpy()
+            img_pil = pred.cpu().detach().numpy()
+
+            print(img_pil.dtype)
+            print(img_pil.shape)
 
             predicted_image = Image.fromarray(img_pil.astype(np.uint8))
 
