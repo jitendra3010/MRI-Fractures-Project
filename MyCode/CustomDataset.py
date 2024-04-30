@@ -20,7 +20,7 @@ class CustomDataset(Dataset):
         
         self.transform = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize((0.5,), (0.5,)),  # Adjust normalization as needed
+            #transforms.Normalize((0.5,), (0.5,)),  # Adjust normalization as needed
             # mean and standard deviation tuple sent as parameter for normalization
             transforms.Resize((256, 256), antialias=True)
         ])
