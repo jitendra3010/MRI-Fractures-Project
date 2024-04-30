@@ -11,7 +11,7 @@ def main(img, train_flag=True):
         mask_dir = train_mask_dir_dict[img]
 
         # initialize agent
-        agent = Agent(train_flag,img_dir=train_dir,msk_dir=mask_dir,folder_path=folder_path,num_epochs=100, batchSize=30, bilinear=False)
+        agent = Agent(train_flag,img_dir=train_dir,msk_dir=mask_dir,folder_path=folder_path,num_epochs=200, batchSize=30, bilinear=False)
         agent.initializeUnet()
 
         # load custom dataset
