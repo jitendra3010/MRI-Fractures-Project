@@ -3,6 +3,7 @@ from Agent import Agent
 from itertools import chain
 from PIL import Image
 import numpy as np
+from plotResult import plotOptimalThresh
 
 def main(img, train_flag=True):
 
@@ -24,32 +25,41 @@ def main(img, train_flag=True):
         predictions = list(chain(*prediction_batch))
 
         # plot few results
-        agent.printPrediction(loader=train_loader, preds=predictions)
+        # agent.printPrediction(loader=train_loader, preds=predictions)
 
-        # write the iou_Score
+        # # write the iou_Score
         w_path = os.path.join(folder_path,"Result","IoUScore.csv")
         agent.writeRun(iou_sore_df,w_path)
 
-        # write the loss data
+        # # write the loss data
         w_path = os.path.join(folder_path,"Result","LossOutput.csv")
         agent.writeRun(loss_df,w_path)
 
-        # save the net
+        # # save the net
         agent.save_net(file_name='UNet')
+        
+        # compute an optimal threshold
+        #iou_vs_thresh = agent.optimalThresVsIoU(train_loader, predictions)
+        #plotOptimalThresh(iou_vs_thresh)
     else:
         test_dir = test_dir_dict[img]
         mask_dir_test = test_mask_dir_dict[img]
 
         agent = Agent(train_flag,img_dir=test_dir,msk_dir=mask_dir_test,folder_path=folder_path,state='old',num_epochs=1, batchSize=30, bilinear=False)
-        agent.initializeUnet('UNetMar 26, 2024 02_20AM')
+        agent.initializeUnet('UNetMay 13, 2024 05_37PM')
         
         test_loader = agent.loadCustomData()
 
-        predictions = agent.runModel(test_loader)
+        prediction_batch, avg_iou_batch = agent.runModel(test_loader)
 
-        print(len(predictions))
+         # join the list of lists
+        predictions = list(chain(*prediction_batch))
 
-        agent.savePredictions(loader=test_loader, predictions=predictions)
+        # plot few results
+        agent.printPrediction(loader=test_loader, preds=predictions)
+        print(f"The Iou Score for Testing ::{avg_iou_batch}")
+
+        #agent.savePredictions(loader=test_loader, predictions=predictions)
         #test_loader.dataset.image_list
 
         #mask_dir_test = test_mask_dir_dict[img]
@@ -108,4 +118,4 @@ if __name__ == '__main__':
     test_mask_dir_dict['SAGIR'] = test_mask_dir_SAGIR
     
     print("Call main for SAGIR")
-    main('SAGIR',train_flag=True)
+    main('SAGIR',train_flag=False)

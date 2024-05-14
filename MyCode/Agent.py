@@ -81,9 +81,7 @@ class Agent:
                 self.model.train()  # Set the model to training mode
                 for images, labels in loader:
 
-                    # reshape the images and the labels to gray 
-                    #images = images.to(self.device) #images.reshape(-1, 1, 256, 256).to(self.device)
-                    #labels = labels.to(self.device) #labels.reshape(-1, 1, 256, 256).to(self.device) 
+                    # reshape the images and the labels
                     images = images.reshape(-1, 1, 256, 256).to(self.device)
                     labels = labels.reshape(-1, 1, 256, 256).to(self.device) 
 
@@ -141,18 +139,47 @@ class Agent:
 
             # set the model to evaluation mode
             self.model.eval()
+            prediction_batch = []
+            iou_score_batch = []
 
-            for images in loader:
+            for images, labels in loader:
+                
+                # reshape the image and labels
                 images = images.reshape(-1, 1, 256, 256).to(self.device)
+                labels = labels.reshape(-1, 1, 256, 256).to(self.device)
 
+                # get the output
                 outputs = self.model.forward(images)
 
+                # Convert predictions to numpy arrays
+                predictions = outputs.detach().cpu().numpy()
+
                 # Collect predictions
-                predictions.append(outputs)
+                prediction_batch.append(outputs)
+
+                # threshold the outputs before computiing the IUO
+                thresh_image = torch.where(outputs > 0.4, 1, 0)
+
+                # compute IOU
+                intersection = torch.logical_and(thresh_image, labels).sum().item()
+                union = torch.logical_or(thresh_image, labels).sum().item()
+
+                # Avoid division by zero
+                if union == 0:
+                    iou_score = 0.0
+                else:
+                    # Compute IoU
+                    iou_score = intersection / union
+                    
+                # append the iou_score
+                iou_score_batch.append(iou_score)
+
+            avg_iou_batch = sum(iou_score_batch) / len(iou_score_batch)
+            print(f"Iou Score ::::{avg_iou_batch}")
 
             # Combine predictions from all batches
-            predictions = torch.cat(predictions, dim=0)
-            return predictions
+            #predictions = torch.cat(predictions, dim=0)
+            return prediction_batch, avg_iou_batch
 
 
     def writeRun(self, dataframe, filename):
@@ -235,44 +262,54 @@ class Agent:
             plt.show()
 
 
-    # def computeIoU(self, loader, preds):
-    #     '''Function to compute the IoU of the prediction to ground truth'''
+    def optimalThresVsIoU(self, loader, preds):
+        '''
+        Function to compute the IoU of the prediction to ground truth for different threhold
+        '''
 
-    #     # get the image names from the loader
-    #     img_names = loader.dataset.image_list
+        threshold = np.arange(0.1, 1.1, 0.1)
+
+        # get the image names from the loader
+        img_names = loader.dataset.image_list
         
-    #     iou_score_all = []
-    #     #iou_df = pd.DataFrame(columns=['ImageNo', 'IoU_Score'])
+        iou_vs_thresh = []
+        #iou_df = pd.DataFrame(columns=['ImageNo', 'IoU_Score'])
 
-    #     # loop through the names and prediciton to compute the 
-    #     for name, predictions in zip(img_names, preds):
-    #         mask = os.path.join(self.msk_dir, name)
-    #         msk = Image.open(mask).convert('L')
+        # loop thorugh all the threshold and compute the iou score
+        for thresh in threshold:
 
-    #         # threshold to 0 or 1 based on mean pixel value
-    #         thresh_image = np.where(predictions > 0.4, 1, 0)
+            iou_score_all = []
+            # loop through the names and prediciton to compute the 
+            for name, predictions in zip(img_names, preds):
+            
+                mask = os.path.join(self.msk_dir, name)
+                msk = Image.open(mask).convert('L')
 
-    #         # append the iou Score to the list
-    #         thresh_image = thresh_image.squeeze().astype(np.uint8)
+                # threshold to 0 or 1 based on mean pixel value
+                thresh_image = np.where(predictions > thresh, 1, 0)
 
-    #         iou_score = self.iou_score(np.array(thresh_image), msk)
-    #         #iou_df.loc[len(iou_df)] = [len(iou_df)+1, iou_score]
-    #         iou_score_all.append(iou_score)
+                # append the iou Score to the list
+                thresh_image = thresh_image.squeeze().astype(np.uint8)
 
-    #     iou_sore_avg = sum(iou_score_all) / len(iou_score_all)
+                iou_score = self.iou_score(np.array(thresh_image), msk)
+                #iou_df.loc[len(iou_df)] = [len(iou_df)+1, iou_score]
+                iou_score_all.append(iou_score)
 
-    #     return iou_sore_avg
+            iou_sore_avg = sum(iou_score_all) / len(iou_score_all)
+            iou_vs_thresh.append(iou_sore_avg)
 
-    # def iou_score(self, pred_mask, true_mask):
-    #     '''Fuction to compute the mask'''
+        return iou_vs_thresh
+
+    def iou_score(self, pred_mask, true_mask):
+        '''Fuction to compute the mask'''
         
-    #     # Resize the predicted mask to match the dimensions of the true mask
-    #     pred_mask = Image.fromarray(pred_mask)
-    #     pred_mask_resized = pred_mask.resize(true_mask.size, Image.NEAREST)
+        # Resize the predicted mask to match the dimensions of the true mask
+        pred_mask = Image.fromarray(pred_mask)
+        pred_mask_resized = pred_mask.resize(true_mask.size, Image.NEAREST)
 
-    #     intersection = np.logical_and(pred_mask_resized, true_mask)
-    #     union = np.logical_or(pred_mask_resized, true_mask)
-    #     iou_score = np.sum(intersection) / np.sum(union)
+        intersection = np.logical_and(pred_mask_resized, true_mask)
+        union = np.logical_or(pred_mask_resized, true_mask)
+        iou_score = np.sum(intersection) / np.sum(union)
 
-    #     return iou_score
+        return iou_score
 

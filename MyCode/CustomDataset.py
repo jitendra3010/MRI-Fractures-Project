@@ -12,9 +12,9 @@ class CustomDataset(Dataset):
         print("Initialize Custom Data")
         self.root_dir = root_dir
         self.train_flag = train_flag
-        if train_flag:
-            self.mask_dir = mask_dir
-            self.mask_list = [file for file in os.listdir(mask_dir) if file.lower().endswith(('jpg', 'jpeg', 'png', 'bmp', 'gif'))]
+        #if train_flag:
+        self.mask_dir = mask_dir
+        self.mask_list = [file for file in os.listdir(mask_dir) if file.lower().endswith(('jpg', 'jpeg', 'png', 'bmp', 'gif'))]
 
         self.image_list = [file for file in os.listdir(root_dir) if file.lower().endswith(('jpg', 'jpeg', 'png', 'bmp', 'gif'))]
         
@@ -32,17 +32,17 @@ class CustomDataset(Dataset):
         img_name = os.path.join(self.root_dir, self.image_list[idx])
         image = Image.open(img_name).convert('L') # convert to gray scale
         
-        if self.train_flag:
-            mask_name = os.path.join(self.mask_dir, self.image_list[idx])  # Assuming masks have the same filenames
-            mask = Image.open(mask_name).convert('L')
-            mask = self.transform(mask) 
+        #if self.train_flag:
+        mask_name = os.path.join(self.mask_dir, self.image_list[idx])  # Assuming masks have the same filenames
+        mask = Image.open(mask_name).convert('L')
+        mask = self.transform(mask) 
 
         image = self.transform(image)
         
         #print("getItem:: image length::",image.shape)
         #print("getItem:: mask length::",mask.shape)
 
-        if self.train_flag:
-            return image, mask
-        else:
-            return image
+        # if self.train_flag:
+        #     return image, mask
+        # else:
+        return image, mask

@@ -1,6 +1,7 @@
 import os
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 
 def plotLoss_IOU(lossDf, iouDf):
     """
@@ -11,11 +12,13 @@ def plotLoss_IOU(lossDf, iouDf):
     ax[0].set_xlabel("Epochs")
     ax[0].set_ylabel("Loss")
     ax[0].set_title("Loss in each epoch")
+    ax[0].grid(True)
 
     ax[1].plot(iouDf['epoch'], iouDf['IoU_Score'])
     ax[1].set_xlabel("Epochs")
     ax[1].set_ylabel("Iou_Score")
     ax[1].set_title("IouScore ")
+    ax[1].grid(True)
     
     plt.show()
 
@@ -43,6 +46,27 @@ def plot_img_and_mask(img, mask):
     #     ax[i + 1].imshow(mask == i)
     # plt.xticks([]), plt.yticks([])
     # plt.show()
+
+def plotOptimalThresh(iou_vs_thresh):
+    '''
+    Plot the differnet iou score vs threshold
+    '''
+    threshold = np.arange(0.1, 1.1, 0.1)
+
+    # Plot
+    plt.figure(figsize=(8, 6))
+    plt.plot(threshold, iou_vs_thresh, marker='o')
+
+    # Add labels and title
+    plt.title('IoU Score vs. Threshold')
+    plt.xlabel('Threshold')
+    plt.ylabel('IoU Score')
+
+    # Show grid
+    plt.grid(True)
+
+    # Show plot
+    plt.show()
 
 def main():
 
