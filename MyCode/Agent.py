@@ -147,18 +147,23 @@ class Agent:
                 # reshape the image and labels
                 images = images.reshape(-1, 1, 256, 256).to(self.device)
                 labels = labels.reshape(-1, 1, 256, 256).to(self.device)
+                #print(len(images))
+                #print(len(labels))
 
                 # get the output
                 outputs = self.model.forward(images)
+                #print(len(outputs))
 
                 # Convert predictions to numpy arrays
                 predictions = outputs.detach().cpu().numpy()
 
                 # Collect predictions
-                prediction_batch.append(outputs)
+                prediction_batch.append(predictions)
 
                 # threshold the outputs before computiing the IUO
-                thresh_image = torch.where(outputs > 0.4, 1, 0)
+                thresh_image = torch.where(outputs > 0.3, 1, 0)
+
+                print(len(thresh_image))
 
                 # compute IOU
                 intersection = torch.logical_and(thresh_image, labels).sum().item()
@@ -175,6 +180,7 @@ class Agent:
                 iou_score_batch.append(iou_score)
 
             avg_iou_batch = sum(iou_score_batch) / len(iou_score_batch)
+            print(len(iou_score_batch))
             print(f"Iou Score ::::{avg_iou_batch}")
 
             # Combine predictions from all batches
@@ -208,10 +214,10 @@ class Agent:
         img_names = loader.dataset.image_list
 
         # no of images you want to show
-        counter = 3 
+        counter = 6 
 
-        image_names = img_names[counter:counter+3]
-        pred_image = preds[counter:counter+3]
+        image_names = img_names[counter:counter+10]
+        pred_image = preds[counter:counter+10]
 
 
         #pred_save_path = os.path.join(self.folder_path,"Predictions")
@@ -225,18 +231,9 @@ class Agent:
             mask = os.path.join(self.msk_dir, name)
             msk = Image.open(mask).convert('L')
 
-            
-            #print(f"Max :: {np.max(predictions)}")
-            #print(f"Min :: {np.min(predictions)}")
 
             # threshold to 0 or 1 based on mean pixel value
-            thresholded_image = np.where(predictions > 0.4, 1, 0)
-
-            #print(f"Max :: {np.max(thresholded_image)}")
-            #print(f"Min :: {np.min(thresholded_image)}")
-
-            #print(thresholded_image.squeeze().shape)
-            #print(thresholded_image.squeeze())
+            thresholded_image = np.where(predictions > 0.3, 1, 0)
 
             # Create a figure and axis objects
             fig, axs = plt.subplots(1, 4, figsize=(15, 5))

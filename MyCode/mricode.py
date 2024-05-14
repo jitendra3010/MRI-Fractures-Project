@@ -45,7 +45,7 @@ def main(img, train_flag=True):
         test_dir = test_dir_dict[img]
         mask_dir_test = test_mask_dir_dict[img]
 
-        agent = Agent(train_flag,img_dir=test_dir,msk_dir=mask_dir_test,folder_path=folder_path,state='old',num_epochs=1, batchSize=30, bilinear=False)
+        agent = Agent(train_flag,img_dir=test_dir,msk_dir=mask_dir_test,folder_path=folder_path,state='old',num_epochs=1, batchSize=240, bilinear=False)
         agent.initializeUnet('UNetMay 13, 2024 05_37PM')
         
         test_loader = agent.loadCustomData()
@@ -60,18 +60,6 @@ def main(img, train_flag=True):
         print(f"The Iou Score for Testing ::{avg_iou_batch}")
 
         #agent.savePredictions(loader=test_loader, predictions=predictions)
-        #test_loader.dataset.image_list
-
-        #mask_dir_test = test_mask_dir_dict[img]
-
-        #test_loader = loadCustomData(test_dir, train_flag=False)
-
-        #runModel(test_loader , train_flag=False)
-
-        # run the model
-        
-
-        #print(f"Inside Main::::{train_dir}")
 
     
 if __name__ == '__main__':
