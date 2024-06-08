@@ -14,15 +14,20 @@ def main(img):
 
     train_dir = train_dir_dict[img]
     test_dir = test_dir_dict[img]
+    val_dir = val_dir_dict[img]
 
     train_mask_dir = train_mask_dir_dict[img]
     test_mask_dir = test_mask_dir_dict[img]
+    val_mask_dir = val_mask_dir_dict[img]
 
     # create the mask for training data
     createMask(df_bounding, train_dir, train_mask_dir)
 
     # create the msk for testing data
     createMask(df_bounding, test_dir, test_mask_dir)
+
+    # create the mask for validaiton data
+    createMask(df_bounding, val_dir, val_mask_dir)
 
 def createMask(df_bounding, source, dest):
 
@@ -44,13 +49,20 @@ def createMask(df_bounding, source, dest):
             condition = result_df['image'] == file
             #print(condition.sum())
 
+            # initialize the array's to hold data
+            img_width_arr = []
+            img_height_arr = []
+            x_arr = []
+            y_arr = []
+            w_arr = []
+            h_arr = []
+
              # if there are multiple records then create multiple mask
             for i in range(condition.sum()):
                 # get the image dimension
                 img_width = result_df[condition].iloc[i]['original_width']
                 img_height =  result_df[condition].iloc[i]['original_height']
                 #print(len(img_width), file)
-
            
                 img_width = int(img_width)  
                 img_height = int(img_height)
@@ -62,26 +74,39 @@ def createMask(df_bounding, source, dest):
                 h = result_df[condition].iloc[i]['value_height'] * img_height /100
                 #x,y,w,h = result_df.loc[file][['','value_y','','value_height']]
 
-                # generate the mask image
-                mask_image = generateMask(img_width, img_height, x, y, w, h)
+                img_width_arr.append(img_width)
+                img_height_arr.append(img_height)
+                x_arr.append(x)
+                y_arr.append(y)
+                w_arr.append(w)
+                h_arr.append(h)
 
-                # change the file name if there are multiple masks
-                if(condition.sum() >1 and i !=0):
-                    file_name , ext = os.path.splitext(file)
+                # # generate the mask image
+                # mask_image = generateMask(img_width, img_height, x, y, w, h)
 
-                    file_name = file_name + '_' + str(i)
-                    file_name = file_name + ext
+                # # change the file name if there are multiple masks
+                # if(condition.sum() >1 and i !=0):
+                #     file_name , ext = os.path.splitext(file)
 
-                    # save the image
-                    mask_image.save(f"{dest}/{file_name}")
-                    counter +=1
+                #     file_name = file_name + '_' + str(i)
+                #     file_name = file_name + ext
 
-                    # create copies of the same image when there are multiple mask
-                    shutil.copy(f"{source}/{file}",f"{source}/{file_name}")
-                    counter_self +=1
-                else:
-                    mask_image.save(f"{dest}/{file}")
-                    counter +=1
+                #     # save the image
+                #     mask_image.save(f"{dest}/{file_name}")
+                #     counter +=1
+
+                #     # create copies of the same image when there are multiple mask
+                #     shutil.copy(f"{source}/{file}",f"{source}/{file_name}")
+                #     counter_self +=1
+                # else:
+                #     mask_image.save(f"{dest}/{file}")
+                #     counter +=1
+            # generate the mask
+            mask_image = generateMask(img_width_arr[0], img_height_arr[0], x_arr, y_arr, w_arr, h_arr)
+
+            # save the mask
+            mask_image.save(f"{dest}/{file}")
+            counter +=1
     
     print(f"Total Images:::{len(all_files)} ::::: of source :::: {source}")
     print(f"Total Mask created :::{counter} ::::: at destination :::: {dest}")
@@ -96,9 +121,13 @@ def generateMask(img_width, img_height, x, y, w, h):
     # Create an empty image with a white background
     mask_image = Image.new("L", (img_width, img_height), 0)  # 'L' mode is for grayscale (0-255)
 
-    # Draw a rectangle on the mask image
-    draw = ImageDraw.Draw(mask_image)
-    draw.rectangle([x, y, x + w, y + h], fill=255)  # 'fill' sets the color (255 for white)
+    # # Draw a rectangle on the mask image
+    # draw = ImageDraw.Draw(mask_image)
+    # draw.rectangle([x, y, x + w, y + h], fill=255)  # 'fill' sets the color (255 for white)
+    for i in range(len(x)):
+        # Draw a rectangle on the mask image
+        draw = ImageDraw.Draw(mask_image)
+        draw.rectangle([x[i], y[i], x[i] + w[i], y[i] + h[i]], fill=255)  # 'fill' sets the color (255 for white)
 
     return mask_image
 
@@ -117,6 +146,8 @@ if __name__ == '__main__':
 
     train_dir_dict = {}
     test_dir_dict ={}
+    val_dir_dict ={}
+
     #val_dir = os.path.join(folder_path, "validate")
     train_dir_SAGT1 = os.path.join(folder_path, "train_data_SAGT1")
     test_dir_SAGT1 = os.path.join(folder_path, "test_data_SAGT1")
@@ -124,27 +155,40 @@ if __name__ == '__main__':
     train_dir_SAGIR = os.path.join(folder_path, "train_data_SAGIR")
     test_dir_SAGIR = os.path.join(folder_path, "test_data_SAGIR")
 
+    val_dir_SAGT1 = os.path.join(folder_path, "val_data_SAGT1")
+    val_dir_SAGIR = os.path.join(folder_path, "val_data_SAGIR")
+
     train_dir_dict['SAGT1'] = train_dir_SAGT1
     train_dir_dict['SAGIR'] = train_dir_SAGIR
 
     test_dir_dict['SAGT1'] = test_dir_SAGT1
     test_dir_dict['SAGIR'] = test_dir_SAGIR
 
+    val_dir_dict['SAGT1'] = val_dir_SAGT1
+    val_dir_dict['SAGIR'] = val_dir_SAGIR
+
     # create the data structure for mask directories
     train_mask_dir_dict = {}
     test_mask_dir_dict = {}
+    val_mask_dir_dict = {}
 
     train_mask_dir_SAGT1 = os.path.join(folder_path, "train_mask_SAGT1")
     test_mask_dir_SAGT1 = os.path.join(folder_path, "test_mask_SAGT1")
+    val_mask_dir_SAGT1 = os.path.join(folder_path, "val_mask_SAGT1")
 
     train_mask_dir_SAGIR = os.path.join(folder_path, "train_mask_SAGIR")
     test_mask_dir_SAGIR = os.path.join(folder_path, "test_mask_SAGIR")
+    val_mask_dir_SAGIR = os.path.join(folder_path, "val_mask_SAGIR")
 
     train_mask_dir_dict['SAGT1'] = train_mask_dir_SAGT1
     train_mask_dir_dict['SAGIR'] = train_mask_dir_SAGIR
 
     test_mask_dir_dict['SAGT1'] = test_mask_dir_SAGT1
     test_mask_dir_dict['SAGIR'] = test_mask_dir_SAGIR
+
+    val_mask_dir_dict['SAGT1'] = val_mask_dir_SAGT1
+    val_mask_dir_dict['SAGIR'] = test_mask_dir_SAGIR
+
 
     # calling for SAGIR , change this parameter to SAGT1 when required
     main('SAGIR') 
