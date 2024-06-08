@@ -187,7 +187,7 @@ if __name__ == '__main__':
     test_mask_dir_dict['SAGIR'] = test_mask_dir_SAGIR
 
     val_mask_dir_dict['SAGT1'] = val_mask_dir_SAGT1
-    val_mask_dir_dict['SAGIR'] = test_mask_dir_SAGIR
+    val_mask_dir_dict['SAGIR'] = val_mask_dir_SAGIR
 
 
     # calling for SAGIR , change this parameter to SAGT1 when required
