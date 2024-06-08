@@ -3,7 +3,7 @@ from Agent import Agent
 from itertools import chain
 from PIL import Image
 import numpy as np
-from plotResult import plotOptimalThresh
+from plotResult import plotOptimalThresh, plotTest_IOU
 
 def main(img, train_flag=True):
 
@@ -46,18 +46,23 @@ def main(img, train_flag=True):
         mask_dir_test = test_mask_dir_dict[img]
 
         agent = Agent(train_flag,img_dir=test_dir,msk_dir=mask_dir_test,folder_path=folder_path,state='old',num_epochs=1, batchSize=240, bilinear=False)
-        agent.initializeUnet('UNetMay 13, 2024 05_37PM')
+        agent.initializeUnet('UNetMay 14, 2024 04_14PM')
         
         test_loader = agent.loadCustomData()
 
-        prediction_batch, avg_iou_batch = agent.runModel(test_loader)
+        prediction_batch, iou_score_batch, iou_score_each = agent.runModel(test_loader)
 
          # join the list of lists
         predictions = list(chain(*prediction_batch))
 
         # plot few results
-        agent.printPrediction(loader=test_loader, preds=predictions)
-        print(f"The Iou Score for Testing ::{avg_iou_batch}")
+        #agent.printPrediction(loader=test_loader, preds=predictions)
+        #print(f"The Iou Score for Testing ::{avg_iou_batch}")
+        print(len(iou_score_each))
+        plotTest_IOU(iou_score_each)
+         # # write the iou_Score
+        #w_path = os.path.join(folder_path,"Result","IoUScore_test.csv")
+        #agent.writeRun(iou_score_batch,w_path)
 
         #agent.savePredictions(loader=test_loader, predictions=predictions)
 

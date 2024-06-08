@@ -29,12 +29,15 @@ class Agent:
         self.state = state
         self.bilinear = bilinear
         self.folder_path = folder_path
-        self.models_path = os.path.join(folder_path, "Models") 
+        self.models_path = os.path.join(folder_path, "Models")
+        self.threshold = 0.3 
 
 
 
     
     def initializeUnet(self, file_name=None):
+        '''Funciton to initialize the u net model'''
+
         if self.state == 'new':
             self.model = UNet(self.in_channels, self.out_channels, self.bilinear).to(self.device)
         else:
@@ -43,11 +46,14 @@ class Agent:
             self.model = load(open_path)
 
     def save_net(self,file_name):
+        '''Function to save the model'''
+
         save_path = os.path.join(self.models_path, file_name + str(datetime.datetime.now().strftime("%b %d, %Y %I_%M%p")))
         save(self.model, save_path)
 
 
     def loadCustomData(self):
+        '''Function to load the custom data for the model'''
 
         # get the dataset
         dataset = CustomDataset(root_dir=self.img_dir, mask_dir=self.msk_dir, train_flag=self.train_flag)
@@ -60,7 +66,7 @@ class Agent:
         return loader
     
     def runModel(self, loader):
-
+        '''Function to run the model for train and test based on trainflag'''
     
         # Define the loss function and optimizer
         #criterion = nn.CrossEntropyLoss
@@ -78,6 +84,10 @@ class Agent:
                 prediction_batch = []
                 loss_batch = []
                 iou_score_batch = []
+
+                # initialize for early stop
+                prev_iou_score = 0
+
                 self.model.train()  # Set the model to training mode
                 for images, labels in loader:
 
@@ -100,7 +110,7 @@ class Agent:
                     #print("Loss:", loss)
 
                     # threshold the outputs before computiing the IUO
-                    thresh_image = torch.where(outputs > 0.4, 1, 0)
+                    thresh_image = torch.where(outputs > self.threshold, 1, 0)
 
                     # compute IOU
                     intersection = torch.logical_and(thresh_image, labels).sum().item()
@@ -132,6 +142,10 @@ class Agent:
                 loss_df.loc[len(loss_df)] = [epoch+1, avg_Loss_epoch]
                 iou_df.loc[(len(iou_df))] = [epoch +1, avg_iou_epoch]
 
+                # do an early stop if the change in iou score is minimal
+                if abs(prev_iou_score - avg_iou_epoch) < 0.001:
+                    break
+
             return loss_df, prediction_batch, iou_df
         
         else:
@@ -139,6 +153,8 @@ class Agent:
 
             # set the model to evaluation mode
             self.model.eval()
+
+            # dataframe to capture the prediciotn and iou score
             prediction_batch = []
             iou_score_batch = []
 
@@ -147,8 +163,8 @@ class Agent:
                 # reshape the image and labels
                 images = images.reshape(-1, 1, 256, 256).to(self.device)
                 labels = labels.reshape(-1, 1, 256, 256).to(self.device)
-                #print(len(images))
-                #print(len(labels))
+                #print("len of images::",len(images))
+                #print("len of labels::",len(labels))
 
                 # get the output
                 outputs = self.model.forward(images)
@@ -161,13 +177,14 @@ class Agent:
                 prediction_batch.append(predictions)
 
                 # threshold the outputs before computiing the IUO
-                thresh_image = torch.where(outputs > 0.3, 1, 0)
+                thresh_image = torch.where(outputs > self.threshold, 1, 0)
 
-                print(len(thresh_image))
+                #print(len(thresh_image))
 
                 # compute IOU
                 intersection = torch.logical_and(thresh_image, labels).sum().item()
                 union = torch.logical_or(thresh_image, labels).sum().item()
+
 
                 # Avoid division by zero
                 if union == 0:
@@ -176,23 +193,52 @@ class Agent:
                     # Compute IoU
                     iou_score = intersection / union
                     
+                print(iou_score)
                 # append the iou_score
                 iou_score_batch.append(iou_score)
+                #print(len(iou_score_batch))
 
             avg_iou_batch = sum(iou_score_batch) / len(iou_score_batch)
-            print(len(iou_score_batch))
+            #print(len(iou_score_batch))
             print(f"Iou Score ::::{avg_iou_batch}")
+
+            iou_score_each = self.computeEachIouTest(outputs, labels)
 
             # Combine predictions from all batches
             #predictions = torch.cat(predictions, dim=0)
-            return prediction_batch, avg_iou_batch
+            return prediction_batch, iou_score_batch, iou_score_each
 
+
+    def computeEachIouTest(self, outputs, labels):
+        
+        iou_scores = []
+
+        for output, label in zip(outputs, labels):
+            # Threshold the outputs
+            thresh_image = torch.where(output > self.threshold, 1, 0)
+
+            # Compute intersection and union
+            intersection = torch.logical_and(thresh_image, label).sum().item()
+            union = torch.logical_or(thresh_image, label).sum().item()
+
+            # Avoid division by zero
+            if union == 0:
+                iou_score = 0.0
+            else:
+                # Compute IoU
+                iou_score = intersection / union
+
+            # Append the IoU score to the list of scores
+            iou_scores.append(iou_score)
+        
+        return iou_scores
 
     def writeRun(self, dataframe, filename):
         '''Function to write the data to the file'''
         dataframe.to_csv(filename, index=False)
 
     def savePredictions(self, loader, predictions):
+        '''Function to save the predictions'''
 
         image_names = loader.dataset.image_list
 
@@ -222,7 +268,7 @@ class Agent:
 
         #pred_save_path = os.path.join(self.folder_path,"Predictions")
 
-        for name, predictions in zip(image_names, pred_image): # TO:DO uncomment this loop later
+        for name, predictions in zip(image_names, pred_image): 
             print(name)
             #file_path = os.path.join(pred_save_path,name)
             image = os.path.join(self.img_dir, name)
@@ -233,7 +279,7 @@ class Agent:
 
 
             # threshold to 0 or 1 based on mean pixel value
-            thresholded_image = np.where(predictions > 0.3, 1, 0)
+            thresholded_image = np.where(predictions > self.threshold, 1, 0)
 
             # Create a figure and axis objects
             fig, axs = plt.subplots(1, 4, figsize=(15, 5))

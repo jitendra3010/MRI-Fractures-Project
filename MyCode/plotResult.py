@@ -22,6 +22,17 @@ def plotLoss_IOU(lossDf, iouDf):
     
     plt.show()
 
+def plotTest_IOU(iou_test):
+    # fig, ax = plt.subplots(1, 1, figsize=(15, 5))
+    # Plot histogram
+    plt.hist(iou_test, bins=30, color='blue', alpha=0.7)
+
+    # Set labels and title
+    plt.xlabel("Iou_score")
+    plt.ylabel("Frequency")
+    plt.title("Histogram of Iou Score Test")
+    plt.show()
+
 
 def plot_img_and_mask(img, mask):
 
@@ -72,8 +83,11 @@ def main():
 
     lossDf = pd.read_csv(lossFile)
     iouDf = pd.read_csv(iouFile)
+    iouDf_test = pd.read_csv(iouTestfile)
 
     plotLoss_IOU(lossDf, iouDf)
+
+    plotTest_IOU(iouDf_test)
 
 if __name__ == '__main__':
 
@@ -81,5 +95,6 @@ if __name__ == '__main__':
 
     lossFile = os.path.join(folder_path, 'Result', "LossOutput.csv")
     iouFile = os.path.join(folder_path, 'Result', "IoUScore.csv")
+    iouTestfile = os.path.join(folder_path, 'Result', "IoUScore_test.csv")
     
     main()
