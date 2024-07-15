@@ -14,11 +14,35 @@ import numpy as np
 from matplotlib import pyplot as plt
 from itertools import chain
 
+import importlib
+import CustomDataset
+import EarlyStopping
+importlib.reload(CustomDataset)
+
+
+class DiceLoss(nn.Module):
+    '''Loss function for criterion image segmentation'''
+    def __init__(self, smooth=1e-6):
+        super(DiceLoss, self).__init__()
+        self.smooth = smooth
+
+    def forward(self, preds, targets):
+        # Flatten the tensors to ensure they are 1D
+        preds = preds.contiguous().view(-1)
+        targets = targets.contiguous().view(-1)
+
+        intersection = (preds * targets).sum()
+        dice = (2. * intersection + self.smooth) / (preds.sum() + targets.sum() + self.smooth)
+
+        return 1 - dice
+
 class Agent:
-    def __init__(self, train_flag, img_dir, msk_dir, folder_path, batchSize=10, num_epochs=1, state='new', bilinear=False):
+    def __init__(self, train_flag, img_dir, msk_dir, folder_path, val_dir=None, msk_dir_val=None, batchSize=10, num_epochs=1, state='new', bilinear=False):
         self.train_flag = train_flag
         self.img_dir = img_dir
         self.msk_dir = msk_dir
+        self.val_dir = val_dir
+        self.msk_dir_val = msk_dir_val
         self.batchSize = batchSize
         self.num_epochs = num_epochs
         self.in_channels = 1    # Assuming gray input
@@ -52,30 +76,53 @@ class Agent:
         save(self.model, save_path)
 
 
-    def loadCustomData(self):
+    def loadCustomData(self, augment=False):
         '''Function to load the custom data for the model'''
 
         # get the dataset
-        dataset = CustomDataset(root_dir=self.img_dir, mask_dir=self.msk_dir, train_flag=self.train_flag)
+        dataset = CustomDataset.CustomDataset(root_dir=self.img_dir, mask_dir=self.msk_dir, train_flag=self.train_flag, augment=augment)
         loader = DataLoader(dataset, batch_size=self.batchSize, shuffle=False, num_workers=0)
 
+        print("Augmentation :::", augment)
         print("Train flag::", self.train_flag)
         print("loader root directory::",loader.dataset.root_dir)
-        print("Total  Size:::",len(loader.dataset.image_list))
+        print("Total Size :::",len(dataset))
+
+        if(self.train_flag):
+            val_dataset = CustomDataset.CustomDataset(root_dir=self.val_dir, mask_dir=self.msk_dir_val, train_flag=self.train_flag)
+            val_loader = DataLoader(val_dataset, batch_size=self.batchSize, shuffle=False, num_workers=0)
+            print("Total Size val:::",len(val_dataset))
+            return loader, val_loader
 
         return loader
     
-    def runModel(self, loader):
+    def runModel(self, loader, val_loader=None, earlyStop=False, L2Reg=False, loss='MSE'):
         '''Function to run the model for train and test based on trainflag'''
+
+        if earlyStop:
+            early_stopping = EarlyStopping.EarlyStopping(patience=5, verbose=True)
     
         # Define the loss function and optimizer
         #criterion = nn.CrossEntropyLoss
-        criterion = nn.MSELoss()  # Mean Squared Error Loss for image-to-image translation
-        optimizer = optim.Adam(self.model.parameters(), lr=0.001)
+        if loss == 'MSE':
+            criterion = nn.MSELoss()  # Mean Squared Error Loss for image-to-image translation
+        elif loss == 'DICE':
+            criterion = DiceLoss() # Dice loss to segmentation
+        
+        # if no L2 regularization
+        if not L2Reg:
+            optimizer = optim.Adam(self.model.parameters(), lr=0.001)
+        else:
+            # Adding L2 regularization (weighted Decay) to combat overfitting by introducing a penalty term
+            optimizer = optim.Adam(self.model.parameters(), lr=0.001, weight_decay=1e-5)
+
 
          #loss_val = []
         loss_df = pd.DataFrame(columns=['epoch', 'loss_val'])
         iou_df = pd.DataFrame(columns=['epoch', 'IoU_Score'])
+
+        loss_val_df = pd.DataFrame(columns=['epoch', 'loss_val'])
+        iou_val_df = pd.DataFrame(columns=['epoch', 'IoU_Score'])
 
         if self.train_flag:
 
@@ -86,7 +133,9 @@ class Agent:
                 iou_score_batch = []
 
                 # initialize for early stop
-                prev_iou_score = 0
+                #prev_iou_score = 0
+
+                ###################### Train Mode ##############################
 
                 self.model.train()  # Set the model to training mode
                 for images, labels in loader:
@@ -109,19 +158,8 @@ class Agent:
                     loss_batch.append(loss.item())
                     #print("Loss:", loss)
 
-                    # threshold the outputs before computiing the IUO
-                    thresh_image = torch.where(outputs > self.threshold, 1, 0)
-
-                    # compute IOU
-                    intersection = torch.logical_and(thresh_image, labels).sum().item()
-                    union = torch.logical_or(thresh_image, labels).sum().item()
-
-                    # Avoid division by zero
-                    if union == 0:
-                        iou_score = 0.0
-                    else:
-                        # Compute IoU
-                        iou_score = intersection / union
+                    # get the iou_score of the batch of loader
+                    iou_score = self.getIoUBatch(outputs, labels)
                     
                     #print(iou_score)
                     iou_score_batch.append(iou_score)
@@ -135,20 +173,78 @@ class Agent:
                 avg_Loss_epoch = sum(loss_batch)/ len(loss_batch)
                 avg_iou_epoch = sum(iou_score_batch) / len(iou_score_batch)
 
-                print(f'Epoch [{epoch + 1}/{self.num_epochs}], Loss: {avg_Loss_epoch}')
-                print(f'Epoch [{epoch + 1}/{self.num_epochs}], IoU_score: {avg_iou_epoch}')
+                #print(f'Epoch [{epoch + 1}/{self.num_epochs}], Loss: {avg_Loss_epoch}')
+                #print(f'Epoch [{epoch + 1}/{self.num_epochs}], IoU_score: {avg_iou_epoch}')
 
                 # add the record to the loss df and iou df
                 loss_df.loc[len(loss_df)] = [epoch+1, avg_Loss_epoch]
                 iou_df.loc[(len(iou_df))] = [epoch +1, avg_iou_epoch]
 
                 # do an early stop if the change in iou score is minimal
-                if abs(prev_iou_score - avg_iou_epoch) < 0.001:
-                    break
+                #if abs(prev_iou_score - avg_iou_epoch) < 0.001:
+                #    break
 
-            return loss_df, prediction_batch, iou_df
+                # validaiton run
+                val_loss_batch = []
+                iou_score_val_batch = []
+                prediction_batch_val = []
+
+                ##############################################################################
+
+                ############################# Validation mode ################################
+
+                self.model.eval() # set the model to evaluation mode
+                with torch.no_grad():
+                    for images_val, labels_val in val_loader:
+                        # reshape the images and the labels
+                        images_val = images_val.reshape(-1, 1, 256, 256).to(self.device)
+                        labels_val = labels_val.reshape(-1, 1, 256, 256).to(self.device) 
+
+                        # Forward pass
+                        outputs_val = self.model.forward(images_val)
+
+                        # Convert predictions to numpy arrays
+                        predictions_val = outputs_val.detach().cpu().numpy()
+
+                        # Collect predictions
+                        prediction_batch_val.append(predictions_val)
+
+                        # get the loss
+                        loss_val = criterion(outputs_val, labels_val)
+
+                        val_loss_batch.append(loss_val.item())
+
+                        # get the iou_score of the batch of loader
+                        iou_score = self.getIoUBatch(outputs_val, labels_val)
+
+                        iou_score_val_batch.append(iou_score)
+
+                ##############################################################################
+
+                # compute the average validation loss of the epoch
+                avg_Loss_val_epoch = sum(val_loss_batch)/ len(val_loss_batch)
+                avg_iou_val_epoch = sum(iou_score_val_batch) / len(iou_score_val_batch)
+
+                 # add the record to the loss df and iou df
+                loss_val_df.loc[len(loss_df)] = [epoch+1, avg_Loss_val_epoch]
+                iou_val_df.loc[(len(iou_df))] = [epoch +1, avg_iou_val_epoch]
+
+                print(f'Epoch [{epoch + 1}/{self.num_epochs}], Train( Loss: {avg_Loss_epoch:.4f}, IoU_score: {avg_iou_epoch:.4f} )'
+                      f' ::: Validation ( Loss: {avg_Loss_val_epoch:.4f}, IoU_score: {avg_iou_val_epoch:.4f} )')
+                #print(f'Epoch [{epoch + 1}/{self.num_epochs}], Train IoU_score: {avg_iou_epoch}, Validaiton IoU_score: {avg_iou_val_epoch}')
+
+                # check for ealry stopping
+                if earlyStop:
+                    early_stopping(avg_Loss_val_epoch, self.model)
+                    if early_stopping.early_stop:
+                        print("Early stopping")
+                        break
+
+            # no requirement to send the validation information back
+            return loss_df, prediction_batch, iou_df, loss_val_df, iou_val_df, prediction_batch_val
         
         else:
+            ########################### Model Testing ####################################
             predictions = []
 
             # set the model to evaluation mode
@@ -176,22 +272,8 @@ class Agent:
                 # Collect predictions
                 prediction_batch.append(predictions)
 
-                # threshold the outputs before computiing the IUO
-                thresh_image = torch.where(outputs > self.threshold, 1, 0)
-
-                #print(len(thresh_image))
-
-                # compute IOU
-                intersection = torch.logical_and(thresh_image, labels).sum().item()
-                union = torch.logical_or(thresh_image, labels).sum().item()
-
-
-                # Avoid division by zero
-                if union == 0:
-                    iou_score = 0.0
-                else:
-                    # Compute IoU
-                    iou_score = intersection / union
+                # get the iou_score of the batch of loader
+                iou_score = self.getIoUBatch(outputs, labels)
                     
                 print(iou_score)
                 # append the iou_score
@@ -202,12 +284,36 @@ class Agent:
             #print(len(iou_score_batch))
             print(f"Iou Score ::::{avg_iou_batch}")
 
+            # compute iou score of each test image to a list
+            # since we are running for 1 epoch with all the test images, the outputs and labels will have all of them
             iou_score_each = self.computeEachIouTest(outputs, labels)
 
             # Combine predictions from all batches
             #predictions = torch.cat(predictions, dim=0)
             return prediction_batch, iou_score_batch, iou_score_each
 
+
+    def getIoUBatch(self,outputs, labels):
+        '''Get Iou For each batch of images'''
+
+         # threshold the outputs before computiing the IUO
+        thresh_image = torch.where(outputs > self.threshold, 1, 0)
+
+        #print(len(thresh_image))
+
+        # compute IOU
+        intersection = torch.logical_and(thresh_image, labels).sum().item()
+        union = torch.logical_or(thresh_image, labels).sum().item()
+
+
+        # Avoid division by zero
+        if union == 0:
+            iou_score = 0.0
+        else:
+            # Compute IoU
+            iou_score = intersection / union
+
+        return iou_score
 
     def computeEachIouTest(self, outputs, labels):
         
@@ -254,13 +360,20 @@ class Agent:
 
             predicted_image.save(file_path)
 
-    def printPrediction(self, loader, preds):
+    def printPrediction(self, loader, preds, idx=6, validation=False):
         '''function to print few predictions with image and mask'''
+
+        if not validation:
+            imgDir = self.img_dir
+            mskDir = self.msk_dir
+        else:
+            imgDir = self.val_dir
+            mskDir = self.msk_dir_val
         
         img_names = loader.dataset.image_list
 
-        # no of images you want to show
-        counter = 6 
+        # starting index counter
+        counter = idx
 
         image_names = img_names[counter:counter+10]
         pred_image = preds[counter:counter+10]
@@ -271,10 +384,10 @@ class Agent:
         for name, predictions in zip(image_names, pred_image): 
             print(name)
             #file_path = os.path.join(pred_save_path,name)
-            image = os.path.join(self.img_dir, name)
+            image = os.path.join(imgDir, name)
             img = Image.open(image).convert('L')
 
-            mask = os.path.join(self.msk_dir, name)
+            mask = os.path.join(mskDir, name)
             msk = Image.open(mask).convert('L')
 
 
@@ -334,7 +447,9 @@ class Agent:
                 # append the iou Score to the list
                 thresh_image = thresh_image.squeeze().astype(np.uint8)
 
+                # ge the iou score of each image
                 iou_score = self.iou_score(np.array(thresh_image), msk)
+
                 #iou_df.loc[len(iou_df)] = [len(iou_df)+1, iou_score]
                 iou_score_all.append(iou_score)
 
@@ -344,7 +459,7 @@ class Agent:
         return iou_vs_thresh
 
     def iou_score(self, pred_mask, true_mask):
-        '''Fuction to compute the mask'''
+        '''Fuction to compute the mask of each prediciotn of and true mask'''
         
         # Resize the predicted mask to match the dimensions of the true mask
         pred_mask = Image.fromarray(pred_mask)
