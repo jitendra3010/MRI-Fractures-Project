@@ -14,7 +14,8 @@ def prepareData(imgName, img):
     """
 
     print("Start of Copy files")
-    counter = 0
+    unhealthy_counter = 0
+    healthy_counter = 0
     #print(imgName)
     #folder_path = os.path.join(my_path, '06192023 SFI renamed')
     for root, dirs, files in os.walk(image_dir):
@@ -23,16 +24,27 @@ def prepareData(imgName, img):
             file_path = os.path.join(root, file_name)
             if img in file_path:
                 #print(file_name)
+                # take the unhealty images to differnt folder for training and testing
                 if imgName.isin([file_name]).any():
                     #print(file_name)
                     if img == 'SAGT1':
                         shutil.copy(file_path, destination_folder_SAGT1)
                     elif img == 'SAGIR':
                         shutil.copy(file_path, destination_folder_SAGIR)
-                    counter += 1
+                    unhealthy_counter += 1
                     #print("File Path:", file_path)
                     #print(file_name)
-    print(f"File Copied ....:{counter}")
+                
+                # take the healthy images to different folder
+                if file_name not in imgName.values:
+                    if img == 'SAGT1':
+                        shutil.copy(file_path, healthy_folder_SAGT1)
+                    elif img =='SAGIR':
+                        shutil.copy(file_path, healthy_folder_SAGIR)
+                    healthy_counter +=1
+
+    print(f"healthy File Copied ....:{unhealthy_counter}")
+    print(f"healthy files Copied:{healthy_counter}")
 
 
 def main(img):
@@ -59,7 +71,11 @@ if __name__ == '__main__':
     image_dir = os.path.join(my_path, 'MRI_Image','06192023 SFI renamed')
     destination_folder_SAGT1 = os.path.join(folder_path, 'SAGT1_Images')
     destination_folder_SAGIR = os.path.join(folder_path, 'SAGIR_Images')
+
+    healthy_folder_SAGT1 = os.path.join(folder_path, 'healthy_SAGT1')
+    healthy_folder_SAGIR = os.path.join(folder_path, 'healthy_SAGIR')
+
     #train_dir = os.path.join(folder_path, "train_data")
     #val_dir = os.path.join(folder_path, "validate")
     #test_dir = os.path.join(folder_path, "test_data")
-    main('SAGIR')
+    main('SAGT1')
