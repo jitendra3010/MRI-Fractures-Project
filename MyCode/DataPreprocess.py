@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import os
 from PIL import Image
 import shutil
@@ -37,11 +38,19 @@ def prepareData(imgName, img):
                 
                 # take the healthy images to different folder
                 if file_name not in imgName.values:
-                    if img == 'SAGT1':
-                        shutil.copy(file_path, healthy_folder_SAGT1)
-                    elif img =='SAGIR':
-                        shutil.copy(file_path, healthy_folder_SAGIR)
-                    healthy_counter +=1
+                    # copy only those healthy image slice which has more than 65% of the image as foot
+                    h_img = Image.open(file_path)
+                    h_img_gray = h_img.convert("L")
+                    h_img_array = np.array(h_img_gray)
+                    h_size = h_img.size
+                    black_pix = np.sum(h_img_array <= 10) # pixel value <=10 considered as black
+
+                    if( (black_pix / (h_size[0] * h_size[1])) < 0.65 ):
+                        if img == 'SAGT1':
+                            shutil.copy(file_path, healthy_folder_SAGT1)
+                        elif img =='SAGIR':
+                            shutil.copy(file_path, healthy_folder_SAGIR)
+                        healthy_counter +=1
 
     print(f"healthy File Copied ....:{unhealthy_counter}")
     print(f"healthy files Copied:{healthy_counter}")
@@ -78,4 +87,4 @@ if __name__ == '__main__':
     #train_dir = os.path.join(folder_path, "train_data")
     #val_dir = os.path.join(folder_path, "validate")
     #test_dir = os.path.join(folder_path, "test_data")
-    main('SAGT1')
+    main('SAGIR')
