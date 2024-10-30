@@ -470,4 +470,44 @@ class Agent:
         iou_score = np.sum(intersection) / np.sum(union)
 
         return iou_score
+    
+    def computePredictionScore(self, loader, preds):
+        '''Function to compute the prediction scores'''
+
+        cols = ['ImageName', 'Image', 'TrueMask', 'PredMask', 'PredScore', 'ActualScore']
+        df = pd.DataFrame(columns=cols)
+
+        imgDir = self.img_dir
+        mskDir = self.msk_dir
+
+        img_names = loader.dataset.image_list
+
+        for name, prediction in zip(img_names, preds):
+
+            image = os.path.join(imgDir, name)
+            img = Image.open(image).convert('L')
+
+            mask = os.path.join(mskDir, name)
+            msk = Image.open(mask).convert('L')
+
+             # reshape the image and labels
+            img = img.resize((256, 256))
+            msk = msk.resize((256,256))
+
+            #print(img.size, msk.size, prediction.)
+            # Compute the sum of pixel values for both images
+            sum_original = np.sum(np.array(img) > 10)
+            sum_predicted = np.sum(prediction.squeeze() > self.threshold)
+            sum_msk = np.sum(np.array(msk) == 255)
+
+            # Compute the prediction score
+            prediction_score = sum_predicted / sum_original
+
+            # compute the actual score
+            actual_score =  sum_msk / sum_original
+
+            df.loc[len(df)] = [name, np.array(img), np.array(msk), np.array(prediction.squeeze()), prediction_score, actual_score]
+
+        
+        return df
 
