@@ -496,15 +496,31 @@ class Agent:
 
             #print(img.size, msk.size, prediction.)
             # Compute the sum of pixel values for both images
-            sum_original = np.sum(np.array(img) > 10)
-            sum_predicted = np.sum(prediction.squeeze() > self.threshold)
-            sum_msk = np.sum(np.array(msk) == 255)
+            # get the binary image for the original image
+            binary_img = np.where(np.array(img) > 10 , 1, 0)
+            pred_array = prediction.squeeze()
 
-            # Compute the prediction score
-            prediction_score = sum_predicted / sum_original
+            # prediction score is sum of binary image times the prediction over the sum of binary image
+            prediction_score = np.sum(binary_img * pred_array) / np.sum(binary_img)
 
             # compute the actual score
-            actual_score =  sum_msk / sum_original
+            binary_msk = np.where(np.array(msk) == 255, 1, 0)
+            actual_score = np.sum(binary_img * binary_msk) / np.sum(binary_img)
+            #print("new::::",prediction_score, actual_score)
+
+            ##########################
+            # sum_original = np.sum(np.array(img) > 10)
+            # sum_predicted = np.sum(prediction.squeeze() > self.threshold)
+            # sum_msk = np.sum(np.array(msk) == 255)
+
+            # # Compute the prediction score
+            # prediction_score_1 = sum_predicted / sum_original
+
+            # # compute the actual score
+            # actual_score_1 =  sum_msk / sum_original
+
+            # print("old:::", prediction_score_1, actual_score_1)
+            ##########################
 
             df.loc[len(df)] = [name, np.array(img), np.array(msk), np.array(prediction.squeeze()), prediction_score, actual_score]
 
