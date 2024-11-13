@@ -151,6 +151,18 @@ def plotOptimalThresh(iou_vs_thresh):
     # Show plot
     plt.show()
 
+def valuePlot(values, text="Plot of Values"):
+
+    value_avg = values.mean()
+
+    plt.plot(values, marker='o', linestyle='-', color='b')  # marker and line styles for better visualization
+    plt.axhline(y=value_avg, color='r', linestyle='--', label=f'Average = {value_avg:.2f}')
+    plt.title(text)
+    plt.xlabel("Index")
+    plt.ylabel("Value")
+    plt.grid(True)  # Optional: add a grid for clarity
+    plt.show()
+
 def main():
 
     lossDf = pd.read_csv(lossFile)

@@ -13,6 +13,12 @@ from PIL import Image
 import numpy as np
 from matplotlib import pyplot as plt
 from itertools import chain
+from scipy.spatial import distance
+from scipy.ndimage import convolve
+
+import surface_distance as surfdist
+from scipy.ndimage import distance_transform_edt
+from scipy.ndimage import binary_dilation, binary_erosion
 
 import importlib
 import CustomDataset
@@ -96,7 +102,7 @@ class Agent:
 
         return loader
     
-    def runModel(self, loader, val_loader=None, earlyStop=False, L2Reg=False, loss='MSE'):
+    def runModel(self, loader, val_loader=None, earlyStop=False, L2Reg=False, loss='MSE', otherMetrics = False):
         '''Function to run the model for train and test based on trainflag'''
 
         if earlyStop:
@@ -288,10 +294,22 @@ class Agent:
             # since we are running for 1 epoch with all the test images, the outputs and labels will have all of them
             iou_score_each = self.computeEachIouTest(outputs, labels)
 
+            if otherMetrics:
+                # get the Dice similiarity coefficient for the batch of loader
+                other_score_each_df = self.getOtherMatEach(outputs, labels)
+
             # Combine predictions from all batches
             #predictions = torch.cat(predictions, dim=0)
+            if otherMetrics:
+                return prediction_batch, iou_score_batch, iou_score_each, other_score_each_df
             return prediction_batch, iou_score_batch, iou_score_each
 
+
+    def computeOtherMetrices(self, outputs, labels):
+        
+        other_mat_df = pd.DataFrame(columns=['DSC', 'RAVD'])
+
+        dsc_score_each = self.getDscEach(outputs, labels)
 
     def getIoUBatch(self,outputs, labels):
         '''Get Iou For each batch of images'''
@@ -314,6 +332,56 @@ class Agent:
             iou_score = intersection / union
 
         return iou_score
+
+    def getOtherMatEach(self, outputs, labels):
+        '''Functiom to get other metrices details
+        DSC : Dice simiilarity coefficients
+        RAVD: Relative absolute volume difference
+        ASSD: Average Symetric Surface distance
+        '''
+
+        other_mat_df = pd.DataFrame(columns=['DSC', 'RAVD', 'ASSD', 'MSSD'])
+
+        dsc_score = []
+        ravd_score = []
+        assd_score = []
+        mssd_score = []
+
+
+        for output, label in zip(outputs, labels):
+            # threshold the outputs before computing the score
+            thresh_image = torch.where(output > self.threshold, 1, 0)
+
+            # get the intersection
+            intersection = torch.logical_and(thresh_image, label).sum().item()
+
+            # get the sum of outputs and labels
+            sum_pred_label = thresh_image.sum().item() + label.sum().item()
+
+            # dice similarity coefficient
+            dsc = (2 * intersection) / sum_pred_label
+            
+            # append the dsc_score
+            dsc_score.append(dsc)
+
+            # get the ravd score
+            ravd = abs( (thresh_image.sum().item() - label.sum().item()) / label.sum().item() )
+            ravd_score.append(ravd)
+
+            # get the assd score
+            assd = self.calculate_assd(thresh_image, label)
+            assd_score.append(assd)
+
+            mssd = self.calculate_mssd(thresh_image, label)
+            mssd_score.append(mssd)
+
+        other_mat_df['DSC'] = dsc_score
+        other_mat_df['RAVD'] = ravd_score
+        #print(assd_score)
+        other_mat_df['ASSD'] = [score.cpu().item() if isinstance(score, torch.Tensor) else score for score in assd_score]
+        other_mat_df['MSSD'] = mssd_score
+
+        return other_mat_df
 
     def computeEachIouTest(self, outputs, labels):
         
@@ -526,4 +594,164 @@ class Agent:
 
         
         return df
+    
+    def calculate_assd(self, pred, target):
+        '''Calculate Average Symmetric Surface Distance (ASSD)'''
 
+        # Convert to numpy arrays for surface extraction
+        #pred_np = pred.cpu().numpy()
+        #target_np = target.cpu().numpy()
+
+        #print(pred_np)
+        #print(target_np)
+
+        # Extract boundary (surface) points
+        pred_surface = self.get_surface_points(pred)
+        target_surface = self.get_surface_points(target)
+
+        # Calculate the ASSD using the formula
+        assd = (self.sum_of_min_distances(pred_surface, target_surface) + 
+                self.sum_of_min_distances(target_surface, pred_surface)) / (len(pred_surface) + len(target_surface))
+    
+        return assd
+
+    def get_surface_points(self, mask):
+        '''Extracts surface points of a binary mask using GPU-compatible operations.'''
+        
+        # Define kernel for convolution
+        kernel = torch.tensor([[1, 1, 1], [1, -8, 1], [1, 1, 1]], device=self.device).float().unsqueeze(0).unsqueeze(0)
+        
+        mask = mask.float().unsqueeze(0)  # Add batch and channel dimensions
+        boundary_mask = torch.nn.functional.conv2d(mask, kernel, padding=1).squeeze().abs() > 0
+        
+        return torch.nonzero(boundary_mask, as_tuple=False)  # Surface points as a list of coordinates
+
+
+    def sum_of_min_distances(self, points_a, points_b):
+        '''Calculates the sum of minimum distances from points in A to points in B using PyTorch.'''
+        
+        if len(points_a) == 0 or len(points_b) == 0:
+            return 0.0
+        
+        # Compute pairwise distances on GPU
+        distances = torch.cdist(points_a.float(), points_b.float(), p=2)  # Euclidean distances
+        min_distances = torch.min(distances, dim=1).values
+        
+        return torch.sum(min_distances)
+
+    # def calculate_mssd(self, pred_mask, true_mask):
+    #     '''Compute maximum symetric surface distance'''
+
+    #     # Convert PyTorch tensors to NumPy arrays
+    #     mask_manual = true_mask.squeeze().cpu().numpy().astype(bool)
+    #     mask_pred = pred_mask.squeeze().cpu().numpy().astype(bool)
+
+    #     # Define voxel spacing (e.g., (1.0, 1.0, 1.0) for isotropic voxels)
+    #     spacing_mm = (1.0, 1.0)  # Adjust based on out data
+
+    #     #print(mask_manual, mask_pred)
+    #     # Compute surface distances
+    #     surface_distances = surfdist.compute_surface_distances(mask_manual, mask_pred, spacing_mm)
+
+    #     # Compute the maximum symmetric surface distance
+    #     max_surf_dist = surfdist.compute_robust_hausdorff(surface_distances, percent=95)
+
+    #     # in case ther is no overlap of the label and prediction the value will be infinite
+    #     if np.isinf(max_surf_dist):
+    #         max_surf_dist = np.nan  # or set to a predefined value
+
+    #     return max_surf_dist
+
+    # def calculate_mssd(self, pred_mask, true_mask):
+    #     """Compute Maximum Symmetric Surface Distance"""
+    
+    #     # Compute boundaries of predicted and true masks
+    #     pred_boundary = self.compute_boundary(pred_mask)
+    #     true_boundary = self.compute_boundary(true_mask)
+
+    #     # Compute distance transforms for the boundaries
+    #     pred_distance = self.compute_distance_transform(pred_boundary)
+    #     true_distance = self.compute_distance_transform(true_boundary)
+
+    #     # Find the maximum distance from predicted boundary to true boundary and vice versa
+    #     max_pred_distance = torch.max(pred_distance)
+    #     max_true_distance = torch.max(true_distance)
+
+    #     # MSSD is the maximum of the two
+    #     mssd = max(max_pred_distance, max_true_distance)
+    
+    #     return mssd.item()
+    
+    # def compute_boundary(self, mask):
+    #     """Compute the boundary of a binary mask by detecting the change in adjacent pixels."""
+    #     # Shift the mask along both axes and detect boundaries (changes between adjacent pixels)
+    #     mask_left = torch.roll(mask, shifts=1, dims=1)
+    #     mask_up = torch.roll(mask, shifts=1, dims=0)
+
+    #     boundary = (mask != mask_left) | (mask != mask_up)
+    #     return boundary.float()
+
+    # def compute_distance_transform(self, mask):
+    #     """Compute the distance transform of a binary mask."""
+    #     # Distance transform using convolution to calculate the distance to the nearest background pixel
+    #     kernel = torch.tensor([[0, 1, 0], [1, -1, 1], [0, 1, 0]], device=self.device).float().unsqueeze(0).unsqueeze(0)
+    #     distance_map = torch.nn.functional.conv2d(mask.unsqueeze(0).float(), kernel, padding=1)
+    #     return torch.abs(distance_map).squeeze()
+
+    def calculate_mssd(self, pred_mask, true_mask):
+        """Compute Maximum Symmetric Surface Distance"""
+        
+        # Ensure masks are boolean
+        pred_mask = pred_mask.bool()
+        true_mask = true_mask.bool()
+        
+        # Compute boundaries of predicted and true masks
+        pred_boundary = self.compute_boundary(pred_mask)
+        true_boundary = self.compute_boundary(true_mask)
+
+        # plt.figure(figsize=(10, 5))
+        # plt.subplot(1, 2, 1)
+        # plt.title('Prediction Boundary')
+        # plt.imshow(pred_boundary.squeeze().cpu().numpy(), cmap='gray')
+        # plt.subplot(1, 2, 2)
+        # plt.title('True boundary')
+        # plt.imshow(true_boundary.squeeze().cpu().numpy(), cmap='gray')
+        # plt.show()
+
+        # Compute distance transforms for the boundaries
+        pred_distance = self.compute_distance_transform(true_boundary)
+        true_distance = self.compute_distance_transform(pred_boundary)
+
+        # Convert boundaries to boolean for indexing
+        pred_boundary = pred_boundary.bool()
+        true_boundary = true_boundary.bool()
+
+        # Find the maximum distance from predicted boundary to true boundary and vice versa
+        max_pred_distance = torch.max(pred_distance[pred_boundary])
+        max_true_distance = torch.max(true_distance[true_boundary])
+
+        # MSSD is the maximum of the two
+        mssd = max(max_pred_distance.item(), max_true_distance.item())
+        
+        return mssd
+    
+    def compute_boundary(self, mask):
+        """Compute the boundary of a binary mask by detecting the change in adjacent pixels."""
+        # Shift the mask along both axes and detect boundaries (changes between adjacent pixels)
+        # mask_left = torch.roll(mask, shifts=1, dims=1)
+        # mask_up = torch.roll(mask, shifts=1, dims=0)
+
+        # boundary = (mask != mask_left) | (mask != mask_up)
+        # return boundary.float()
+        mask_np = mask.cpu().numpy().astype(bool)
+        dilated_mask = binary_dilation(mask_np)
+        eroded_mask = binary_erosion(mask_np)
+        boundary = dilated_mask ^ eroded_mask
+        return torch.tensor(boundary, device=mask.device, dtype=torch.float32)
+
+    def compute_distance_transform(self, mask):
+        """Compute the distance transform of a binary mask."""
+        # Convert to numpy array for distance transform
+        mask_np = mask.cpu().numpy().astype(bool)
+        distance_map = distance_transform_edt(~mask_np)
+        return torch.tensor(distance_map, device=mask.device, dtype=torch.float32)
