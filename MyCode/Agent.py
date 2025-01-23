@@ -1,5 +1,7 @@
 from CustomDataset import CustomDataset
 from UNet import UNet
+from NNDetect import NNDetect
+from NNUnet import nnUNet
 from torch.utils.data import Dataset, DataLoader
 from torch import save
 from torch import load
@@ -24,6 +26,7 @@ import importlib
 import CustomDataset
 import EarlyStopping
 importlib.reload(CustomDataset)
+#importlib.reload(nnUNet)
 
 
 class DiceLoss(nn.Module):
@@ -70,6 +73,24 @@ class Agent:
 
         if self.state == 'new':
             self.model = UNet(self.in_channels, self.out_channels, self.bilinear).to(self.device)
+        else:
+            self.train_flag = False
+            open_path = os.path.join(self.models_path, file_name)
+            self.model = load(open_path)
+
+    def intializeNNDetect(self, file_name=None):
+        '''Function to initialize the nnDetect model'''
+        if self.state == 'new':
+            self.model = NNDetect(self.in_channels, self.out_channels).to(self.device)
+        else:
+            self.train_flag = False
+            open_path = os.path.join(self.models_path, file_name)
+            self.model = load(open_path)
+    
+    def intializeNNUnet(self, file_name=None):
+        '''Function to initialize the nnDetect model'''
+        if self.state == 'new':
+            self.model = nnUNet(self.in_channels, self.out_channels).to(self.device)
         else:
             self.train_flag = False
             open_path = os.path.join(self.models_path, file_name)
