@@ -1,1 +1,1 @@
-[View Document] [SuplementFile_Research_Unet_MRI Segmentation Defining ROI for Edema.pdf](https://github.com/user-attachments/files/17567879/SuplementFile_Research_Unet_MRI.Segmentation.Defining.ROI.for.Edema.pdf)
+[View Document] [https://github.com/jitendra3010/MRI-Fractures-Project/blob/main/Optimized_U_Net_Architecture_for_Precise_Edema_ROI_Definition_in_MRI_Image_Segmentation.pdf]
